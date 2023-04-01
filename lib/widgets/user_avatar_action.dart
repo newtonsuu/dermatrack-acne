@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../screens/settings_screen.dart';
@@ -89,7 +87,7 @@ class _UserAvatarActionState extends State<UserAvatarAction> {
 
   @override
   Widget build(BuildContext context) {
-    final picturePath = ProfileService.instance.profilePicturePath;
+    final pictureUrl = ProfileService.instance.profilePictureUrl;
     final user = AuthService.instance.currentUser;
 
     return Padding(
@@ -100,7 +98,7 @@ class _UserAvatarActionState extends State<UserAvatarAction> {
         offset: const Offset(-8, 12),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: Color(0xFFE6EBEE)),
+          side: BorderSide(color: AppTheme.border(context)),
         ),
         onSelected: _handleSelection,
         itemBuilder: (context) => [
@@ -115,18 +113,18 @@ class _UserAvatarActionState extends State<UserAvatarAction> {
                 children: [
                   Text(
                     user?.displayName ?? 'DermaTrack User',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
+                      color: AppTheme.textPrimary(context),
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     user?.email ?? '',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: AppTheme.textSecondary,
+                      color: AppTheme.textSecondary(context),
                     ),
                   ),
                 ],
@@ -134,10 +132,10 @@ class _UserAvatarActionState extends State<UserAvatarAction> {
             ),
           ),
           const PopupMenuDivider(),
-          PopupMenuItem<String>(
+          const PopupMenuItem<String>(
             value: 'settings',
             child: Row(
-              children: const [
+              children: [
                 Icon(Icons.settings_outlined,
                     size: 20, color: AppTheme.primary),
                 SizedBox(width: 12),
@@ -163,11 +161,13 @@ class _UserAvatarActionState extends State<UserAvatarAction> {
           height: 36,
           width: 36,
           child: ClipOval(
-            child: picturePath != null
-                ? Image.file(
-                    File(picturePath),
+            child: pictureUrl != null
+                ? Image.network(
+                    pictureUrl,
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => _InitialsCircle(_initials),
+                    loadingBuilder: (_, child, progress) =>
+                        progress == null ? child : _InitialsCircle(_initials),
                   )
                 : _InitialsCircle(_initials),
           ),

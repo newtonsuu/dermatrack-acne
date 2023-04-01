@@ -20,19 +20,19 @@ class PasswordStrengthChecklist extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
       decoration: BoxDecoration(
-        color: AppTheme.background,
+        color: AppTheme.background(context),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE6EBEE)),
+        border: Border.all(color: AppTheme.border(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Password must include:',
             style: TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 13,
-              color: AppTheme.textPrimary,
+              color: AppTheme.textPrimary(context),
             ),
           ),
           const SizedBox(height: 8),
@@ -59,7 +59,7 @@ class _RuleRow extends StatelessWidget {
           Icon(
             satisfied ? Icons.check_circle : Icons.circle_outlined,
             size: 16,
-            color: satisfied ? const Color(0xFF1F8A8A) : AppTheme.textSecondary,
+            color: satisfied ? AppTheme.primary : AppTheme.textSecondary(context),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -68,8 +68,8 @@ class _RuleRow extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 color: satisfied
-                    ? AppTheme.textPrimary
-                    : AppTheme.textSecondary,
+                    ? AppTheme.textPrimary(context)
+                    : AppTheme.textSecondary(context),
               ),
             ),
           ),

@@ -19,6 +19,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
 
+  // Tracks focus on the password field so the strength checklist only shows
+  // while the user is actively editing the password.
+  final _passwordFocusNode = FocusNode();
+
   // Server-side errors from the auth service, keyed by field.
   String? _emailError;
   String? _usernameError;
@@ -45,6 +49,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _confirmController.addListener(() {
       if (_confirmError != null) setState(() => _confirmError = null);
     });
+    _passwordFocusNode.addListener(() {
+      // Rebuild so the strength checklist shows/hides with focus.
+      setState(() {});
+    });
   }
 
   @override
@@ -53,6 +61,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _usernameController.dispose();
     _passwordController.dispose();
     _confirmController.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
   }
 
@@ -75,9 +84,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (!mounted) return;
     if (result == null) {
-      // Success — AuthGate is already swapping to HomeShell behind us.
-      // Pop this screen so the user lands on the dashboard.
-      Navigator.of(context).pop();
+      // Success — AuthGate has swapped the underlying root to HomeShell.
+      // Pop back to the root so the user lands on the dashboard regardless of
+      // whether they reached register via the welcome screen or the login link.
+      Navigator.of(context).popUntil((route) => route.isFirst);
       return;
     }
 
@@ -178,6 +188,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _passwordController,
+                      focusNode: _passwordFocusNode,
                       obscureText: _obscurePassword,
                       textInputAction: TextInputAction.next,
                       decoration: InputDecoration(
@@ -195,14 +206,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         final password = value ?? '';
                         if (password.isEmpty) return 'Password is required.';
                         if (unmetPasswordRequirements(password).isNotEmpty) {
-                          return 'Password does not meet the requirements below.';
+                          return 'Password does not meet the requirements.';
                         }
                         return _passwordError;
                       },
                     ),
-                    const SizedBox(height: 10),
-                    PasswordStrengthChecklist(
-                      password: _passwordController.text,
+                    // Only show the strength checklist while the password
+                    // field is focused, to keep the form uncluttered when the
+                    // user is filling out other fields.
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOut,
+                      alignment: Alignment.topCenter,
+                      child: _passwordFocusNode.hasFocus
+                          ? Padding(
+                              padding: const EdgeInsets.only(top: 10),
+                              child: PasswordStrengthChecklist(
+                                password: _passwordController.text,
+                              ),
+                            )
+                          : const SizedBox(width: double.infinity),
                     ),
                     const SizedBox(height: 16),
                     TextFormField(

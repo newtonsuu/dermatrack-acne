@@ -14,7 +14,7 @@ class DashboardScreen extends StatelessWidget {
     final firstName = (user?.displayName ?? 'there').split(' ').first;
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: AppTheme.background(context),
       appBar: AppBar(
         title: const Text('DermaTrack'),
         actions: [
