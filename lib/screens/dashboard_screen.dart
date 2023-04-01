@@ -10,6 +10,7 @@ import '../widgets/user_avatar_action.dart';
 import 'camera_screen.dart';
 import 'gallery_screen.dart';
 import 'scan_detail_screen.dart';
+import 'scan_session/scan_session_screen.dart';
 
 /// Home/dashboard. The first surface a logged-in user sees.
 ///
@@ -76,14 +77,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 20),
-          _ScanCard(
+          // Primary CTA — the guided 5-region daily scan session, which is
+          // what the dermatologist confirmed on 2026-05-25 is the right
+          // basis for longitudinal acne tracking.
+          _DailySessionCard(
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => const CameraScreen(),
+                  builder: (_) => const ScanSessionScreen(),
                 ),
               );
             },
+          ),
+          const SizedBox(height: 10),
+          // Secondary — the existing single-shot flow remains available
+          // for quick spot-checks. De-emphasized via TextButton + smaller
+          // type so the daily session feels like the canonical path.
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CameraScreen()),
+                );
+              },
+              icon: const Icon(Icons.camera_alt_outlined, size: 16),
+              label: const Text('Quick single scan'),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                minimumSize: const Size(0, 32),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
           ),
           const SizedBox(height: 24),
           Text(
@@ -180,8 +205,12 @@ int _computeDayStreak(List<Scan> scans) {
   return streak;
 }
 
-class _ScanCard extends StatelessWidget {
-  const _ScanCard({required this.onTap});
+/// Primary dashboard CTA. Launches the guided 5-step daily scan session
+/// (forehead → left cheek → right cheek → chin → full face). Designed to
+/// look prominent against the rest of the dashboard so the patient's eye
+/// lands on it first.
+class _DailySessionCard extends StatelessWidget {
+  const _DailySessionCard({required this.onTap});
   final VoidCallback onTap;
 
   @override
@@ -207,7 +236,7 @@ class _ScanCard extends StatelessWidget {
                 color: Colors.white.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(Icons.camera_alt,
+              child: const Icon(Icons.center_focus_strong,
                   color: Colors.white, size: 28),
             ),
             const SizedBox(width: 16),
@@ -216,7 +245,7 @@ class _ScanCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Start a new scan',
+                    'Start daily scan',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -225,7 +254,7 @@ class _ScanCard extends StatelessWidget {
                   ),
                   SizedBox(height: 4),
                   Text(
-                    'Take a clear selfie to log today’s progress.',
+                    "5 quick captures — forehead, cheeks, chin, full face.",
                     style: TextStyle(color: Colors.white70, fontSize: 13),
                   ),
                 ],

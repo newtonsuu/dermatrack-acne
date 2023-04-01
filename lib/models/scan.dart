@@ -1,5 +1,43 @@
 import 'package:flutter/material.dart';
 
+/// Anatomical zone captured by a scan. Mirrors the CHECK constraint on
+/// `public.scans.region` (see migration 0004_scan_regions.sql). The five
+/// values are the basis of the daily guided capture (forehead → left
+/// cheek → right cheek → chin → full face) that came out of the
+/// dermatologist consult.
+///
+/// String values are the canonical wire format — they match the SQL
+/// constraint exactly, so a region passes round-trip through the Edge
+/// Function and the database without any translation layer in between.
+enum ScanRegion {
+  forehead('forehead', 'Forehead'),
+  leftCheek('left_cheek', 'Left cheek'),
+  rightCheek('right_cheek', 'Right cheek'),
+  chin('chin', 'Chin'),
+  fullFace('full_face', 'Full face');
+
+  const ScanRegion(this.wireName, this.label);
+
+  /// SQL string written to `public.scans.region`. Stable forever — don't
+  /// rename without a migration.
+  final String wireName;
+
+  /// Human-readable label for the scan detail screen, the calendar
+  /// day-sheet, and the guided-capture progress UI.
+  final String label;
+
+  /// Parses a wire-format string back to its enum. Falls back to
+  /// [ScanRegion.fullFace] for unknown values so the UI degrades
+  /// gracefully on a row written by a newer schema.
+  static ScanRegion fromWire(String? wire) {
+    if (wire == null) return ScanRegion.fullFace;
+    for (final r in ScanRegion.values) {
+      if (r.wireName == wire) return r;
+    }
+    return ScanRegion.fullFace;
+  }
+}
+
 /// A single skin scan record.
 ///
 /// Maps 1:1 to a row in `public.scans` plus a lazily-resolved signed URL for
@@ -29,6 +67,8 @@ class Scan {
     required this.createdAt,
     this.analysisDetails,
     this.doctorNote,
+    this.region = ScanRegion.fullFace,
+    this.sessionId,
   });
 
   final String id;
@@ -71,6 +111,17 @@ class Scan {
   /// doctor sides via the `doctor_notes` PostgREST embed in their respective
   /// load methods. RLS (0003_doctor_notes.sql) gates who can write it.
   final String? doctorNote;
+
+  /// Anatomical zone this scan captured. Defaults to [ScanRegion.fullFace]
+  /// for back-compat — every scan written before 0004 was a full-face
+  /// capture, so the schema DEFAULT and this Dart default agree.
+  final ScanRegion region;
+
+  /// Links this scan to the other four in the same guided-capture session,
+  /// so the UI can render the five regions of one daily sitting as a
+  /// coherent snapshot. Null on standalone single-region scans and on
+  /// legacy rows. UUID string from `public.scans.session_id`.
+  final String? sessionId;
 
   /// Color used in thumbnails / chips / calendar cells to communicate
   /// severity at a glance.
@@ -142,6 +193,11 @@ class Scan {
       createdAt: DateTime.parse(row['created_at'] as String).toLocal(),
       analysisDetails: analysis,
       doctorNote: doctorNoteText,
+      // Region defaults to full_face for any pre-0004 row that lacks the
+      // column (theoretically impossible since the migration backfills via
+      // DEFAULT, but defensive parsing keeps the model forgiving).
+      region: ScanRegion.fromWire(row['region'] as String?),
+      sessionId: row['session_id'] as String?,
     );
   }
 
@@ -174,6 +230,8 @@ class Scan {
         createdAt: createdAt,
         analysisDetails: analysisDetails,
         doctorNote: setDoctorNote ? doctorNote : this.doctorNote,
+        region: region,
+        sessionId: sessionId,
       );
 }
 

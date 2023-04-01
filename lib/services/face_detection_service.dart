@@ -215,6 +215,33 @@ class FaceDetectionService {
     }
   }
 
+  /// Lightweight face detection for live camera stream frames.
+  ///
+  /// Unlike [check] (which does the heavy JPEG-decode preflight before
+  /// submission), this method takes an already-constructed [InputImage]
+  /// from the camera plugin's image stream and returns the *first* face
+  /// (or null if none/multiple detected). No bbox-area / pose validation —
+  /// the per-region [RegionAlignmentEvaluator] handles those checks
+  /// because they vary per region.
+  ///
+  /// Returns null when:
+  ///   - ML Kit isn't available (Web / desktop) — falls through silently.
+  ///   - The detector found zero or two-plus faces.
+  ///   - The InputImage was malformed (rare; usually a format mismatch
+  ///     between camera + ML Kit on first stream frame).
+  Future<Face?> detectFromInputImage(InputImage inputImage) async {
+    if (kIsWeb) return null;
+    try {
+      final detector = _getDetector();
+      final faces = await detector.processImage(inputImage);
+      if (faces.length == 1) return faces.first;
+      return null;
+    } catch (e) {
+      debugPrint('FaceDetectionService.detectFromInputImage failed: $e');
+      return null;
+    }
+  }
+
   /// Releases the detector model. App currently never calls this — the
   /// detector lives for the process lifetime, which is fine for an
   /// interactive long-running app. Wired for completeness if we ever
