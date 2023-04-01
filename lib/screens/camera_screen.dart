@@ -3,8 +3,11 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../services/face_detection_service.dart';
+import '../services/scan_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/user_avatar_action.dart';
+import 'scan_detail_screen.dart';
 
 /// Camera screen for capturing a selfie used in a skin scan.
 ///
@@ -25,6 +28,7 @@ class _CameraScreenState extends State<CameraScreen> {
   // mobile, and desktop. XFile.readAsBytes() is cross-platform; File isn't.
   Uint8List? _capturedImageBytes;
   bool _isPicking = false;
+  bool _isSubmitting = false;
   String? _errorMessage;
 
   Future<void> _takePhoto() async {
@@ -79,17 +83,74 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   void _retake() {
+    if (_isSubmitting) return;
     setState(() => _capturedImageBytes = null);
   }
 
-  void _useThisPhoto() {
-    // Placeholder — wires to ScanService when the API integration lands.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Saved! Analysis pipeline coming soon.'),
-      ),
-    );
-    setState(() => _capturedImageBytes = null);
+  /// Sends the captured selfie to ScanService for upload + analysis.
+  ///
+  /// Runs a preflight face-detection check first (on-device, ~200ms). If
+  /// the check fails — no face, multiple faces, face too small, face too
+  /// tilted — submission is blocked with the failure reason. Saves a
+  /// 5-second Edge Function round-trip + a wasted Roboflow / HF call on
+  /// garbage inputs, and matches AcneCheck's "chair photo defense"
+  /// methodology contribution.
+  ///
+  /// On Flutter Web the preflight skips (ML Kit isn't available) — survey
+  /// respondents get the unguarded flow as a phase-1 limitation.
+  ///
+  /// On success, pushes the scan-detail screen and clears the preview so
+  /// the camera screen is ready for the next scan.
+  Future<void> _useThisPhoto() async {
+    final bytes = _capturedImageBytes;
+    if (bytes == null || _isSubmitting) return;
+
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // Preflight — block submission for low-quality / non-face captures
+      // before we waste an Edge Function call on them.
+      final preflight = await FaceDetectionService.instance.check(bytes);
+      if (!mounted) return;
+      if (!preflight.passed) {
+        setState(() {
+          _isSubmitting = false;
+          _errorMessage =
+              preflight.userMessage ?? 'This photo didn\'t pass the quality check.';
+        });
+        return;
+      }
+
+      // Preflight passed (or was skipped on web) — proceed with the
+      // existing upload + analysis flow.
+      final scan = await ScanService.instance.submitScan(bytes);
+      if (!mounted) return;
+      setState(() {
+        _isSubmitting = false;
+        _capturedImageBytes = null;
+      });
+      // Push detail. Back button returns to the (empty) camera screen.
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => ScanDetailScreen(scan: scan)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isSubmitting = false;
+        _errorMessage = _friendlyError(e);
+      });
+    }
+  }
+
+  /// Strip the leading "Exception: " from `Exception("…")` strings so the
+  /// snackbar doesn't read like a stack-trace excerpt.
+  String _friendlyError(Object e) {
+    final s = e.toString();
+    const prefix = 'Exception: ';
+    return s.startsWith(prefix) ? s.substring(prefix.length) : s;
   }
 
   @override
@@ -202,26 +263,92 @@ class _CameraScreenState extends State<CameraScreen> {
         Expanded(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
-            child: Image.memory(
-              _capturedImageBytes!,
-              fit: BoxFit.cover,
-              width: double.infinity,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.memory(_capturedImageBytes!, fit: BoxFit.cover),
+                if (_isSubmitting) const _AnalyzingOverlay(),
+              ],
             ),
           ),
         ),
+        if (_errorMessage != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            _errorMessage!,
+            style: TextStyle(color: Colors.red.shade700),
+            textAlign: TextAlign.center,
+          ),
+        ],
         const SizedBox(height: 20),
         FilledButton.icon(
-          onPressed: _useThisPhoto,
-          icon: const Icon(Icons.check),
-          label: const Text('Use this photo'),
+          onPressed: _isSubmitting ? null : _useThisPhoto,
+          icon: _isSubmitting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation(Colors.white),
+                  ),
+                )
+              : const Icon(Icons.check),
+          label: Text(_isSubmitting ? 'Analyzing…' : 'Use this photo'),
         ),
         const SizedBox(height: 10),
         OutlinedButton.icon(
-          onPressed: _retake,
+          onPressed: _isSubmitting ? null : _retake,
           icon: const Icon(Icons.refresh),
           label: const Text('Retake'),
         ),
       ],
+    );
+  }
+}
+
+/// Semi-transparent overlay shown on top of the preview while the scan is
+/// being uploaded + analyzed. Telegraphs the cold-start possibility so a
+/// 30–60 s wait doesn't feel like the app froze.
+class _AnalyzingOverlay extends StatelessWidget {
+  const _AnalyzingOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Colors.black.withValues(alpha: 0.55),
+      child: const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 38,
+                height: 38,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  valueColor: AlwaysStoppedAnimation(Colors.white),
+                ),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Analyzing your skin…',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
+              SizedBox(height: 6),
+              Text(
+                'This can take up to a minute on the first scan of the day.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
