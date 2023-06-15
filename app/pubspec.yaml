@@ -40,6 +40,12 @@ dependencies:
   # zonedSchedule needs a tz.TZDateTime; this package gives us the
   # location database and the timezone() lookup.
   timezone: ^0.9.4
+  # PDF generation + share/print for the dermatologist's patient report.
+  # `pdf` builds the document; `printing` hands it to the OS share/print
+  # sheet and provides the network-image loader for scan thumbnails in the
+  # report. Used only by the doctor-side report export flow.
+  pdf: ^3.11.1
+  printing: ^5.13.2
 
 dev_dependencies:
   flutter_lints: ^4.0.0

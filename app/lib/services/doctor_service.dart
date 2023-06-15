@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 
 import '../models/patient_history.dart';
 import '../models/scan.dart';
+import '../models/treatment_plan.dart';
 import 'auth_service.dart';
 
 /// Doctor-side data layer for the demo doctor account.
@@ -79,6 +80,19 @@ class DoctorService extends ChangeNotifier {
       _historyLoading.contains(patientId);
   Object? historyErrorFor(String patientId) => _historyError[patientId];
 
+  // ===== Per-patient treatment plan =====
+  // Same sentinel convention as the medical-history cache: a key present
+  // with a null value means "fetched, no plan yet"; an absent key means
+  // "not fetched". Lets the UI tell loading apart from empty.
+  final Map<String, TreatmentPlan?> _planByPatient = {};
+  final Map<String, Object?> _planError = {};
+  final Set<String> _planLoading = {};
+
+  bool hasPlanFor(String patientId) => _planByPatient.containsKey(patientId);
+  TreatmentPlan? planFor(String patientId) => _planByPatient[patientId];
+  bool isLoadingPlanFor(String patientId) => _planLoading.contains(patientId);
+  Object? planErrorFor(String patientId) => _planError[patientId];
+
   // ===== Auth wiring =====
 
   void _onAuthChanged() {
@@ -93,6 +107,7 @@ class DoctorService extends ChangeNotifier {
       final hadAny = _patients.isNotEmpty ||
           _scansByPatient.isNotEmpty ||
           _historyByPatient.isNotEmpty ||
+          _planByPatient.isNotEmpty ||
           _patientsError != null;
       _patients = const [];
       _scansByPatient.clear();
@@ -101,6 +116,9 @@ class DoctorService extends ChangeNotifier {
       _historyByPatient.clear();
       _historyError.clear();
       _historyLoading.clear();
+      _planByPatient.clear();
+      _planError.clear();
+      _planLoading.clear();
       _patientsError = null;
       if (hadAny) notifyListeners();
     }
@@ -310,6 +328,92 @@ class DoctorService extends ChangeNotifier {
     } finally {
       _historyLoading.remove(patientId);
       notifyListeners();
+    }
+  }
+
+  // ===== Treatment plan (doctor-authored, per patient) =====
+
+  /// Fetches [patientId]'s treatment plan from public.treatment_plans. RLS
+  /// (0006_treatment_plans.sql) restricts the doctor to consenting patients.
+  /// Result is cached; pass `force: true` to bypass the cache (used after an
+  /// edit, and by pull-to-refresh).
+  Future<void> loadTreatmentPlan(
+    String patientId, {
+    bool force = false,
+  }) async {
+    if (!AuthService.instance.isDoctor) return;
+    if (_planLoading.contains(patientId)) return;
+    if (!force && _planByPatient.containsKey(patientId)) return;
+
+    _planLoading.add(patientId);
+    notifyListeners();
+
+    try {
+      final row = await _client
+          .from('treatment_plans')
+          .select()
+          .eq('user_id', patientId)
+          .maybeSingle();
+
+      if (row == null) {
+        _planByPatient[patientId] = null; // sentinel: fetched, no plan
+      } else {
+        _planByPatient[patientId] =
+            TreatmentPlan.fromRow(row.cast<String, dynamic>());
+      }
+      _planError[patientId] = null;
+    } catch (e) {
+      debugPrint('DoctorService.loadTreatmentPlan($patientId) failed: $e');
+      _planError[patientId] = e;
+    } finally {
+      _planLoading.remove(patientId);
+      notifyListeners();
+    }
+  }
+
+  /// Sets (or clears) [patientId]'s treatment plan. Pass [plan] as a non-empty
+  /// string to upsert, or `null` / blank to delete the row.
+  ///
+  /// On success the local cache is refreshed from the returned row (or set to
+  /// the null sentinel when cleared) so the UI reflects the new state without
+  /// a second fetch. Rethrows on failure so the caller can surface it.
+  ///
+  /// RLS is the real gate (0006): only the demo doctor account can write, and
+  /// only for consenting patients.
+  Future<void> setTreatmentPlan({
+    required String patientId,
+    required String? plan,
+  }) async {
+    if (!AuthService.instance.isDoctor) {
+      throw StateError('Only the doctor account can set treatment plans.');
+    }
+
+    final trimmed = plan?.trim();
+    final clearing = trimmed == null || trimmed.isEmpty;
+
+    try {
+      if (clearing) {
+        await _client.from('treatment_plans').delete().eq('user_id', patientId);
+        _planByPatient[patientId] = null;
+      } else {
+        // Upsert on the PK (user_id) so the doctor can create or edit without
+        // first checking existence. updated_at is maintained by the trigger.
+        final row = await _client
+            .from('treatment_plans')
+            .upsert({
+              'user_id': patientId,
+              'plan': trimmed,
+            }, onConflict: 'user_id')
+            .select()
+            .single();
+        _planByPatient[patientId] =
+            TreatmentPlan.fromRow(row.cast<String, dynamic>());
+      }
+      _planError[patientId] = null;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('DoctorService.setTreatmentPlan($patientId) failed: $e');
+      rethrow;
     }
   }
 

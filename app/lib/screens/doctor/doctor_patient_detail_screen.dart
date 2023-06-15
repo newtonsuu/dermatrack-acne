@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../models/patient_history.dart';
 import '../../models/scan.dart';
+import '../../models/treatment_plan.dart';
+import '../../services/doctor_report_service.dart';
 import '../../services/doctor_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/scan_thumbnail.dart';
@@ -29,14 +31,19 @@ class DoctorPatientDetailScreen extends StatefulWidget {
 }
 
 class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen> {
+  bool _isSavingPlan = false;
+  bool _isExporting = false;
+
   @override
   void initState() {
     super.initState();
     DoctorService.instance.addListener(_onChanged);
-    // Kick off the scan + medical-history loads. The service caches both,
-    // so re-opening the patient is instant on subsequent visits.
+    // Kick off the scan, medical-history, and treatment-plan loads. The
+    // service caches all three, so re-opening the patient is instant on
+    // subsequent visits.
     DoctorService.instance.loadPatientScans(widget.patient.id);
     DoctorService.instance.loadPatientHistory(widget.patient.id);
+    DoctorService.instance.loadTreatmentPlan(widget.patient.id);
   }
 
   @override
@@ -53,7 +60,111 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen> {
     await Future.wait([
       DoctorService.instance.loadPatientScans(widget.patient.id),
       DoctorService.instance.loadPatientHistory(widget.patient.id, force: true),
+      DoctorService.instance.loadTreatmentPlan(widget.patient.id, force: true),
     ]);
+  }
+
+  /// Opens an edit dialog for the patient-level treatment plan, pre-filled
+  /// with the current plan. Returns null (dismiss / no-op), '' (clear), or
+  /// the new text. Mirrors the doctor-note edit flow on the scan screen.
+  Future<void> _editTreatmentPlan() async {
+    if (_isSavingPlan) return;
+    final current =
+        DoctorService.instance.planFor(widget.patient.id)?.plan ?? '';
+    final controller = TextEditingController(text: current);
+
+    final result = await showDialog<String?>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(current.isEmpty ? 'Add treatment plan' : 'Edit treatment plan'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 10,
+          minLines: 5,
+          textInputAction: TextInputAction.newline,
+          decoration: const InputDecoration(
+            hintText:
+                'Standing guidance for the patient — regimen, products, '
+                'and when to follow up. Visible to the patient.',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(null),
+            child: const Text('Cancel'),
+          ),
+          if (current.isNotEmpty)
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(''),
+              style: TextButton.styleFrom(foregroundColor: Colors.red.shade600),
+              child: const Text('Clear'),
+            ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == null || !mounted) return;
+
+    setState(() => _isSavingPlan = true);
+    try {
+      await DoctorService.instance.setTreatmentPlan(
+        patientId: widget.patient.id,
+        plan: result,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.trim().isEmpty
+              ? 'Treatment plan cleared.'
+              : 'Treatment plan saved. The patient can see it.'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Couldn't save plan: $e")),
+      );
+    } finally {
+      if (mounted) setState(() => _isSavingPlan = false);
+    }
+  }
+
+  /// Builds and shares a PDF report for this patient from the currently
+  /// loaded scans, medical history, and treatment plan.
+  Future<void> _exportReport() async {
+    if (_isExporting) return;
+    final service = DoctorService.instance;
+    final scans = service.scansFor(widget.patient.id);
+    if (scans.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No scans to include in the report yet.')),
+      );
+      return;
+    }
+
+    setState(() => _isExporting = true);
+    try {
+      await DoctorReportService.sharePatientReport(
+        patient: widget.patient,
+        scans: scans,
+        history: service.historyFor(widget.patient.id),
+        plan: service.planFor(widget.patient.id),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Couldn't generate report: $e")),
+      );
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
+    }
   }
 
   @override
@@ -67,6 +178,19 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen> {
       backgroundColor: AppTheme.background(context),
       appBar: AppBar(
         title: Text(widget.patient.displayLabel),
+        actions: [
+          IconButton(
+            tooltip: 'Export PDF report',
+            onPressed: _isExporting ? null : _exportReport,
+            icon: _isExporting
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.picture_as_pdf_outlined),
+          ),
+        ],
         // Tiny visual reminder that this is the doctor's read-only lens, not
         // the patient's editable view.
         bottom: const PreferredSize(
@@ -112,11 +236,20 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen> {
     final history = service.historyFor(patientId);
     final hasHistory = service.hasHistoryFor(patientId);
     final historyLoading = service.isLoadingHistoryFor(patientId);
+    final plan = service.planFor(patientId);
+    final planLoading = service.isLoadingPlanFor(patientId);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       children: [
         _PatientHeader(patient: widget.patient, scanCount: scans.length),
+        const SizedBox(height: 16),
+        _TreatmentPlanCard(
+          plan: plan,
+          isLoading: planLoading && !service.hasPlanFor(patientId),
+          isSaving: _isSavingPlan,
+          onEdit: _editTreatmentPlan,
+        ),
         const SizedBox(height: 16),
         _MedicalHistoryCard(
           history: history,
@@ -462,6 +595,135 @@ class _MedicalHistoryCardState extends State<_MedicalHistoryCard> {
       lines.add('Others: ${h.socialOthers!.trim()}');
     }
     return lines;
+  }
+
+  static String _2(int n) => n.toString().padLeft(2, '0');
+}
+
+/// Editable, doctor-authored treatment plan for the patient. Uses the accent
+/// color to read as an actionable card (like the doctor-note card on the scan
+/// screen). "Add" when empty, "Edit" when populated.
+class _TreatmentPlanCard extends StatelessWidget {
+  const _TreatmentPlanCard({
+    required this.plan,
+    required this.isLoading,
+    required this.isSaving,
+    required this.onEdit,
+  });
+
+  final TreatmentPlan? plan;
+  final bool isLoading;
+  final bool isSaving;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasPlan = plan != null && plan!.plan.trim().isNotEmpty;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.medication_outlined,
+                    color: AppTheme.accent, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Treatment plan (visible to the patient)',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary(context),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                TextButton.icon(
+                  onPressed: (isSaving || isLoading) ? null : onEdit,
+                  icon: isSaving
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(hasPlan ? Icons.edit_outlined : Icons.add,
+                          size: 16),
+                  label: Text(hasPlan ? 'Edit' : 'Add'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppTheme.accent,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    minimumSize: const Size(0, 32),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: _content(context, hasPlan),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _content(BuildContext context, bool hasPlan) {
+    if (isLoading) {
+      return Row(
+        children: [
+          const SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 10),
+          Text('Loading plan…',
+              style: TextStyle(
+                  fontSize: 13, color: AppTheme.textSecondary(context))),
+        ],
+      );
+    }
+    if (!hasPlan) {
+      return Text(
+        'No treatment plan yet. Tap Add to give the patient a regimen and '
+        'follow-up guidance.',
+        style: TextStyle(
+          fontSize: 13.5,
+          height: 1.4,
+          color: AppTheme.textSecondary(context),
+          fontStyle: FontStyle.italic,
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          plan!.plan.trim(),
+          style: TextStyle(
+            fontSize: 13.5,
+            height: 1.4,
+            color: AppTheme.textPrimary(context),
+          ),
+        ),
+        if (plan!.updatedAt != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            'Updated ${plan!.updatedAt!.year}-${_2(plan!.updatedAt!.month)}-${_2(plan!.updatedAt!.day)}',
+            style: TextStyle(
+              fontSize: 11.5,
+              color: AppTheme.textSecondary(context),
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   static String _2(int n) => n.toString().padLeft(2, '0');
