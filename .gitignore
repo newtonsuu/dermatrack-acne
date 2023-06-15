@@ -1,45 +1,63 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+# ============================================================
+# DermaTrack — root .gitignore
+# ============================================================
 
-# IntelliJ related
+# ====== Flutter / Dart build artifacts ======
+# Belt-and-suspenders with app/.gitignore.
+app/build/
+app/.dart_tool/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/.pub-cache/
+app/.pub/
+app/coverage/
+app/**/.last_build_id
+
+# ====== Python (the spike) ======
+spike/.venv/
+spike/__pycache__/
+spike/**/__pycache__/
+**/*.pyc
+
+# ====== Spike outputs (PRIVATE — contains face photos and raw API responses) ======
+# Selfies used during the API spike. Even if they're stock photos, keeping
+# them out of the repo is the safer default. Remove these lines if you
+# decide to commit them as research artifacts.
+spike/sample_images/
+spike/responses/
+
+# ====== Hugging Face local cache ======
+# transformers downloads ~350 MB of model weights on first run. Way too
+# big for a repo; lives in the user's home cache dir anyway.
+.cache/
+
+# ====== CRITICAL — anywhere credentials might land ======
+# VS Code launch.json contains --dart-define=SUPABASE_URL/ANON_KEY if you
+# ever set it up. Block before it can be committed.
+.vscode/launch.json
+.vscode/*.local
+
+# Any .env files. Don't commit secrets.
+.env
+.env.local
+.env.*.local
+
+# Roboflow / HF tokens you might paste into a config file for testing.
+**/secrets.json
+**/secrets.dart
+**/config.local.dart
+
+# ====== IDE / editor noise ======
+# Note: not ignoring all of .vscode/ since you may want to share
+# tasks.json or settings.json (but launch.json is blocked above).
+.idea/
 *.iml
 *.ipr
 *.iws
-.idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-/build/
-/coverage/
-
-# Symbolication related
-app.*.symbols
-
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+# ====== OS junk ======
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
