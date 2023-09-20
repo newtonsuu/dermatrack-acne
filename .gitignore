@@ -47,6 +47,10 @@ spike/responses/
 .env.local
 .env.*.local
 
+# Supabase --dart-define-from-file inputs (hold SUPABASE_URL / ANON_KEY).
+dart-define.json
+**/dart-define.json
+
 # Roboflow / HF tokens you might paste into a config file for testing.
 **/secrets.json
 **/secrets.dart
