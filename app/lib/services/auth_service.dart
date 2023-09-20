@@ -12,6 +12,15 @@ import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 /// access is auditable.
 const String kDoctorDemoEmail = 'doctor@dermatrack.demo';
 
+/// All emails that route to the demo dermatologist view. The original demo
+/// account plus any additional demo doctors created for testing. Mirror any
+/// change here in the database `is_demo_doctor()` function (migration 0007)
+/// so client routing and server-side RLS agree.
+const Set<String> kDoctorDemoEmails = {
+  kDoctorDemoEmail,
+  'dr.demo@dermatrack.demo',
+};
+
 /// Authentication service backed by Supabase Auth.
 ///
 /// Preserves the exact public surface of the previous in-memory stub so the
@@ -51,7 +60,7 @@ class AuthService extends ChangeNotifier {
   /// cased but typed input can vary.
   bool get isDoctor {
     final email = _currentUser?.email.toLowerCase().trim();
-    return email != null && email == kDoctorDemoEmail;
+    return email != null && kDoctorDemoEmails.contains(email);
   }
 
   void _initialize() {
