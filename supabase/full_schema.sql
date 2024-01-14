@@ -1,25 +1,12 @@
 -- ============================================================
--- DermaTrack - FULL schema for a BRAND-NEW, EMPTY Supabase project
+-- DermaTrack - FULL schema for a new Supabase project
 -- ============================================================
--- For a fresh project that has no app tables yet. One-time setup:
---   1. Create the Supabase project.
---   2. Open Dashboard -> SQL Editor -> New query.
---   3. Paste this ENTIRE file and click Run.
---
--- This applies migrations 0001-0009 in order: all tables, RLS policies,
--- storage buckets (profile-pictures, scan-images, prescription-images),
--- triggers (incl. auto-create profile on signup), the demo-doctor function,
--- and the realtime publication for chat. Every statement is idempotent
--- (IF NOT EXISTS / OR REPLACE / DROP ... IF EXISTS), so re-running is safe.
---
--- Relies only on objects every Supabase project already has: the auth and
--- storage schemas, auth.users, auth.jwt(), and (created here if absent) the
--- supabase_realtime publication.
---
--- After it runs: sign up the demo accounts (the on_auth_user_created trigger
--- creates their profiles automatically):
---   patient -> demo.patient@dermatrack.demo
---   doctor  -> dr.demo@dermatrack.demo   (recognized by is_demo_doctor)
+-- Paste this ENTIRE file into Dashboard -> SQL Editor -> New query and Run.
+-- Applies migrations 0001-0009: tables, RLS, storage buckets, triggers,
+-- the demo-doctor function, and the chat realtime publication.
+-- Idempotent and non-destructive: safe to re-run, and it ADAPTS if a
+-- profiles table already exists (e.g. from a Supabase starter template) by
+-- adding any missing columns rather than failing.
 -- ============================================================
 
 -- ####################### 0001_init.sql #######################
@@ -55,6 +42,21 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 
     CONSTRAINT profiles_username_min_length CHECK (length(username) >= 3)
 );
+
+-- Defensive: if `public.profiles` already existed (e.g. a Supabase starter
+-- template created one without these columns), the CREATE above was a no-op.
+-- Add any missing columns so the rest of this migration (and the app) works
+-- regardless of how the table got there. Non-destructive: existing columns
+-- and data are untouched.
+ALTER TABLE public.profiles
+    ADD COLUMN IF NOT EXISTS username             text,
+    ADD COLUMN IF NOT EXISTS display_name         text,
+    ADD COLUMN IF NOT EXISTS profile_picture_path text,
+    ADD COLUMN IF NOT EXISTS created_at           timestamptz NOT NULL DEFAULT now(),
+    ADD COLUMN IF NOT EXISTS updated_at           timestamptz NOT NULL DEFAULT now();
+
+-- Ensure username is unique (no-op if the constraint/index already exists).
+CREATE UNIQUE INDEX IF NOT EXISTS profiles_username_key ON public.profiles (username);
 
 COMMENT ON TABLE public.profiles
     IS 'App-specific user fields. 1:1 with auth.users; row auto-created by trigger on signup.';

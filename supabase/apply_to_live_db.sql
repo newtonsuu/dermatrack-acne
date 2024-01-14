@@ -1,9 +1,6 @@
 -- ============================================================
--- DermaTrack - catch-up script for an EXISTING database
--- ============================================================
--- Adds only the newer objects (migrations 0005-0009) to a database that
--- already has 0001-0004. Idempotent; does not touch existing tables/data.
--- For a brand-new project use full_schema.sql instead.
+-- DermaTrack - catch-up script (migrations 0005-0009) for an existing DB
+-- that already has 0001-0004. Idempotent. For a new project use full_schema.sql.
 -- ============================================================
 
 -- ####################### 0005_patient_histories.sql #######################
