@@ -1,17 +1,31 @@
-﻿-- ============================================================
--- DermaTrack - FULL schema for a brand-new Supabase project
 -- ============================================================
--- Paste this entire file into the new project's Dashboard -> SQL Editor and
--- run it once. It applies every migration (0001-0009) in order:
---   tables, RLS, storage buckets, triggers, the demo-doctor function, and the
---   realtime publication for chat. All statements are idempotent.
--- After running, the database matches this codebase exactly.
+-- DermaTrack - FULL schema for a BRAND-NEW, EMPTY Supabase project
+-- ============================================================
+-- For a fresh project that has no app tables yet. One-time setup:
+--   1. Create the Supabase project.
+--   2. Open Dashboard -> SQL Editor -> New query.
+--   3. Paste this ENTIRE file and click Run.
+--
+-- This applies migrations 0001-0009 in order: all tables, RLS policies,
+-- storage buckets (profile-pictures, scan-images, prescription-images),
+-- triggers (incl. auto-create profile on signup), the demo-doctor function,
+-- and the realtime publication for chat. Every statement is idempotent
+-- (IF NOT EXISTS / OR REPLACE / DROP ... IF EXISTS), so re-running is safe.
+--
+-- Relies only on objects every Supabase project already has: the auth and
+-- storage schemas, auth.users, auth.jwt(), and (created here if absent) the
+-- supabase_realtime publication.
+--
+-- After it runs: sign up the demo accounts (the on_auth_user_created trigger
+-- creates their profiles automatically):
+--   patient -> demo.patient@dermatrack.demo
+--   doctor  -> dr.demo@dermatrack.demo   (recognized by is_demo_doctor)
 -- ============================================================
 
 -- ####################### 0001_init.sql #######################
--- DermaTrack â€” initial schema migration
+-- DermaTrack — initial schema migration
 -- ============================================
--- Run this in the Supabase SQL Editor (Studio â†’ SQL Editor â†’ New query).
+-- Run this in the Supabase SQL Editor (Studio → SQL Editor → New query).
 -- Safe to re-run: every CREATE uses IF NOT EXISTS or OR REPLACE.
 --
 -- Companion doc: supabase/schema.md (read this first for design rationale).
@@ -314,14 +328,14 @@ CREATE POLICY "Own scan image delete"
 
 
 -- ####################### 0002_doctor_demo.sql #######################
--- DermaTrack â€” doctor demo migration
+-- DermaTrack — doctor demo migration
 -- ============================================
--- Adds the minimal schema + RLS needed to demonstrate the patientâ†”doctor
+-- Adds the minimal schema + RLS needed to demonstrate the patient↔doctor
 -- exchange to a real dermatologist. DEMO-GRADE: the doctor email is
 -- hard-coded both here and in the Flutter client (services/auth_service.dart).
 -- This migration is intentionally separate from 0001_init.sql so it can be
 -- rolled back / replaced once we design the production doctor model
--- (proper role table, patientâ†”doctor linking, audit log).
+-- (proper role table, patient↔doctor linking, audit log).
 --
 -- Run this in the Supabase SQL Editor AFTER 0001_init.sql.
 -- Safe to re-run.
@@ -331,7 +345,7 @@ CREATE POLICY "Own scan image delete"
 
 
 -- ============================================
--- 1. Schema change â€” opt-in flag on profiles
+-- 1. Schema change — opt-in flag on profiles
 -- ============================================
 -- The patient toggles this from the profile screen ("Share with my
 -- dermatologist"). When true, the doctor demo account can SELECT their
@@ -345,7 +359,7 @@ COMMENT ON COLUMN public.profiles.shared_with_doctor
 
 
 -- ============================================
--- 2. Demo doctor email â€” one place to change it
+-- 2. Demo doctor email — one place to change it
 -- ============================================
 -- Helper function returns the hard-coded doctor email. Centralising it here
 -- means the policies below stay readable, and there's exactly one row to
@@ -367,7 +381,7 @@ COMMENT ON FUNCTION public.is_demo_doctor()
 
 
 -- ============================================
--- 3. RLS â€” doctor can read consenting patients
+-- 3. RLS — doctor can read consenting patients
 -- ============================================
 -- profiles: 0001_init already lets any authenticated user SELECT profiles
 -- (so usernames render in scan-detail / future social features). The doctor
@@ -389,11 +403,11 @@ CREATE POLICY "Demo doctor can read consenting patients' scans"
     );
 
 -- Note: scan inserts/updates/deletes are still owner-only (the doctor must
--- not be able to modify a patient's scans â€” only the patient can).
+-- not be able to modify a patient's scans — only the patient can).
 
 
 -- ============================================
--- 4. Storage RLS â€” doctor can read shared scan images
+-- 4. Storage RLS — doctor can read shared scan images
 -- ============================================
 -- The scan-images bucket stores objects under `{user_id}/{scan_id}.jpg`.
 -- The existing "Own scan image read" policy ties reads to the user's own
@@ -414,7 +428,7 @@ CREATE POLICY "Demo doctor can read consenting patients' scan images"
         )
     );
 
--- Profile pictures stay owner-only â€” the doctor doesn't need to see avatars
+-- Profile pictures stay owner-only — the doctor doesn't need to see avatars
 -- for the v1 demo and we keep that surface tight by default. Easy to widen
 -- later if the dermatologist asks for it.
 
@@ -435,16 +449,16 @@ CREATE POLICY "Demo doctor can read consenting patients' scan images"
 --   SELECT polname FROM pg_policy
 --   WHERE polname LIKE '%demo doctor%';
 --
--- After running, in Supabase Auth â†’ Users, create the demo doctor account:
+-- After running, in Supabase Auth → Users, create the demo doctor account:
 --   email:    doctor@dermatrack.demo
---   password: (your choice â€” see app/lib/services/auth_service.dart)
+--   password: (your choice — see app/lib/services/auth_service.dart)
 -- The handle_new_user trigger will auto-create a profiles row for it. That's
--- fine â€” the doctor account just has a profile row of its own that nobody
+-- fine — the doctor account just has a profile row of its own that nobody
 -- reads.
 
 
 -- ####################### 0003_doctor_notes.sql #######################
--- DermaTrack â€” doctor notes per scan
+-- DermaTrack — doctor notes per scan
 -- ============================================
 -- Adds a 1:1 (zero-or-one) `doctor_notes` table keyed by scan_id. The
 -- dermatologist (demo doctor account) can leave a clinical note on any
@@ -456,11 +470,11 @@ CREATE POLICY "Demo doctor can read consenting patients' scan images"
 --     doctor_note column on scans, the patient's existing "Users can update
 --     own scans" policy would let them edit the doctor's note. A separate
 --     table with its own RLS keeps write authority cleanly with the doctor.
---   - The cascade-delete behavior we want (delete the scan â†’ delete its
+--   - The cascade-delete behavior we want (delete the scan → delete its
 --     note) is the same with both designs.
 --
 -- Visibility rules:
---   - Patient can SELECT notes on their own scans (always â€” even after they
+--   - Patient can SELECT notes on their own scans (always — even after they
 --     toggle sharing off, so previously-left notes don't disappear).
 --   - Doctor can SELECT/INSERT/UPDATE/DELETE notes for scans whose owner
 --     has shared_with_doctor = true. Turning sharing off freezes the
@@ -485,7 +499,7 @@ CREATE TABLE IF NOT EXISTS public.doctor_notes (
 COMMENT ON TABLE public.doctor_notes
     IS 'Dermatologist-authored note for a single scan. PK is scan_id so each scan has at most one note.';
 COMMENT ON COLUMN public.doctor_notes.note
-    IS 'Free-text clinical observation from the demo doctor account. NOT NULL + non-blank check â€” clear/delete the row to remove a note.';
+    IS 'Free-text clinical observation from the demo doctor account. NOT NULL + non-blank check — clear/delete the row to remove a note.';
 
 
 -- ============================================
@@ -582,7 +596,7 @@ CREATE POLICY "Demo doctor can delete notes for consenting patients"
         )
     );
 
--- Patient deliberately has NO insert/update/delete policies â€” they cannot
+-- Patient deliberately has NO insert/update/delete policies — they cannot
 -- author or modify doctor notes. PostgREST denies by default.
 
 
@@ -601,21 +615,21 @@ CREATE POLICY "Demo doctor can delete notes for consenting patients"
 
 
 -- ####################### 0004_scan_regions.sql #######################
--- DermaTrack â€” scan regions + guided session grouping
+-- DermaTrack — scan regions + guided session grouping
 -- ============================================
 -- Adds two columns to public.scans:
---   region      â€” anatomical zone the scan captured. Five values:
+--   region      — anatomical zone the scan captured. Five values:
 --                   forehead, left_cheek, right_cheek, chin, full_face.
 --                 This is the basis of the daily 5-step guided capture
---                 (forehead â†’ left cheek â†’ right cheek â†’ chin â†’ full face)
+--                 (forehead → left cheek → right cheek → chin → full face)
 --                 that came out of the dermatologist consult on 2026-05-25.
---   session_id  â€” groups the five scans of one guided capture into a
+--   session_id  — groups the five scans of one guided capture into a
 --                 coherent snapshot the UI can render as a unit. NULL for
 --                 ad-hoc single-region scans and for legacy rows predating
 --                 region tracking.
 --
 -- Pre-migration scans are silently tagged as 'full_face' via the column
--- DEFAULT â€” they were full-face captures, so this is accurate, and
+-- DEFAULT — they were full-face captures, so this is accurate, and
 -- nothing in the existing UI breaks.
 --
 -- Run AFTER 0003_doctor_notes.sql. Safe to re-run.
@@ -650,7 +664,7 @@ COMMENT ON COLUMN public.scans.session_id
 -- Indexes
 -- ============================================
 
--- Fast "scans in this session" lookup. Partial index â€” session_id is NULL
+-- Fast "scans in this session" lookup. Partial index — session_id is NULL
 -- on legacy rows and standalone scans, no reason to index them.
 CREATE INDEX IF NOT EXISTS scans_user_session_idx
     ON public.scans (user_id, session_id)
@@ -669,11 +683,11 @@ CREATE INDEX IF NOT EXISTS scans_user_region_taken_at_idx
 -- ============================================
 -- Columns present + defaults applied to existing rows:
 --   SELECT region, count(*) FROM public.scans GROUP BY region;
---   -- expected: all existing rows â†’ 'full_face'
+--   -- expected: all existing rows → 'full_face'
 --
 -- Constraint enforced:
 --   INSERT INTO public.scans (...) VALUES (..., 'eyebrow', ...);
---   -- expected: ERROR â€” new row violates CHECK constraint scans_region_valid
+--   -- expected: ERROR — new row violates CHECK constraint scans_region_valid
 --
 -- Indexes exist:
 --   SELECT indexname FROM pg_indexes
@@ -683,20 +697,20 @@ CREATE INDEX IF NOT EXISTS scans_user_region_taken_at_idx
 
 
 -- ####################### 0005_patient_histories.sql #######################
--- DermaTrack â€” patient histories (clinical intake)
+-- DermaTrack — patient histories (clinical intake)
 -- ============================================
 -- One-row-per-user clinical intake form, modeled directly on the OPD
 -- Medical Record form Dr. Christine Ann Olivete-Agdamag uses at her
 -- aesthetic dermatology clinic (the dermatologist who's consulting on
--- this thesis). All fields are optional from the patient's perspective â€”
+-- this thesis). All fields are optional from the patient's perspective —
 -- the goal is to give the dermatologist context when she has it, not to
 -- force disclosure when she doesn't.
 --
 -- Visibility:
---   â€¢ Patient can read + write their own row.
---   â€¢ The demo doctor account can read rows for patients who have
+--   • Patient can read + write their own row.
+--   • The demo doctor account can read rows for patients who have
 --     toggled shared_with_doctor = true (see 0002_doctor_demo.sql).
---   â€¢ The doctor cannot write â€” patient history is patient-authored.
+--   • The doctor cannot write — patient history is patient-authored.
 --
 -- Run AFTER 0004_scan_regions.sql. Safe to re-run.
 -- ============================================
@@ -733,7 +747,7 @@ CREATE TABLE IF NOT EXISTS public.patient_histories (
     family_history_others         text,
 
     -- ----- Personal and social history -----
-    -- pack_years: NULL â†’ non-smoker, 0+ â†’ smoker with that pack-year count
+    -- pack_years: NULL → non-smoker, 0+ → smoker with that pack-year count
     -- (the form has "Smoker: ___ Pack Years" with a numeric blank).
     smoker_pack_years             numeric,
     uses_prohibited_drugs         boolean     NOT NULL DEFAULT false,
@@ -805,7 +819,7 @@ CREATE POLICY "Users can delete own patient history"
 
 
 -- ---- Demo doctor: read-only access to consenting patients' histories ----
--- Doctor cannot INSERT/UPDATE/DELETE â€” patient history is patient-authored.
+-- Doctor cannot INSERT/UPDATE/DELETE — patient history is patient-authored.
 -- Sharing flag lives on profiles.shared_with_doctor (0002_doctor_demo.sql).
 DROP POLICY IF EXISTS "Demo doctor can read consenting patients' history" ON public.patient_histories;
 CREATE POLICY "Demo doctor can read consenting patients' history"
@@ -831,12 +845,12 @@ CREATE POLICY "Demo doctor can read consenting patients' history"
 -- RLS enabled:
 --   SELECT relrowsecurity FROM pg_class WHERE relname = 'patient_histories';
 --
--- Policies present (expect five â€” four owner CRUD + one doctor read):
+-- Policies present (expect five — four owner CRUD + one doctor read):
 --   SELECT polname FROM pg_policy WHERE polrelid = 'public.patient_histories'::regclass;
 
 
 -- ####################### 0006_treatment_plans.sql #######################
--- DermaTrack â€” treatment plans (doctor-authored, per patient)
+-- DermaTrack — treatment plans (doctor-authored, per patient)
 -- ============================================
 -- One-row-per-patient treatment plan written by the dermatologist. Unlike
 -- doctor_notes (which are per-scan clinical observations), a treatment plan
@@ -850,12 +864,12 @@ CREATE POLICY "Demo doctor can read consenting patients' history"
 --     doctor (same reasoning as doctor_notes in 0003).
 --
 -- Visibility (mirrors doctor_notes):
---   â€¢ Patient can SELECT their own plan â€” always, even after toggling
+--   • Patient can SELECT their own plan — always, even after toggling
 --     sharing off, so guidance the doctor already gave doesn't vanish.
---   â€¢ Doctor can SELECT/INSERT/UPDATE/DELETE plans for patients whose
+--   • Doctor can SELECT/INSERT/UPDATE/DELETE plans for patients whose
 --     profiles.shared_with_doctor = true. Turning sharing off freezes the
 --     doctor's write access; the existing plan stays visible to the patient.
---   â€¢ Patient cannot write â€” the plan is doctor-authored.
+--   • Patient cannot write — the plan is doctor-authored.
 --
 -- Run AFTER 0005_patient_histories.sql. Safe to re-run.
 -- ============================================
@@ -878,7 +892,7 @@ CREATE TABLE IF NOT EXISTS public.treatment_plans (
 COMMENT ON TABLE public.treatment_plans
     IS 'Dermatologist-authored, patient-level treatment plan. PK is user_id so each patient has at most one current plan.';
 COMMENT ON COLUMN public.treatment_plans.plan
-    IS 'Free-text regimen / follow-up guidance from the demo doctor account. NOT NULL + non-blank check â€” delete the row to clear a plan.';
+    IS 'Free-text regimen / follow-up guidance from the demo doctor account. NOT NULL + non-blank check — delete the row to clear a plan.';
 
 
 -- ============================================
@@ -970,7 +984,7 @@ CREATE POLICY "Demo doctor can delete plan for consenting patients"
         )
     );
 
--- Patient deliberately has NO insert/update/delete policies â€” the plan is
+-- Patient deliberately has NO insert/update/delete policies — the plan is
 -- doctor-authored. PostgREST denies by default.
 
 
@@ -984,12 +998,12 @@ CREATE POLICY "Demo doctor can delete plan for consenting patients"
 -- RLS enabled:
 --   SELECT relrowsecurity FROM pg_class WHERE relname = 'treatment_plans';
 --
--- Policies present (expect five â€” one patient read + four doctor CRUD):
+-- Policies present (expect five — one patient read + four doctor CRUD):
 --   SELECT polname FROM pg_policy WHERE polrelid = 'public.treatment_plans'::regclass;
 
 
 -- ####################### 0007_doctor_demo_emails.sql #######################
--- DermaTrack â€” additional demo doctor email
+-- DermaTrack — additional demo doctor email
 -- ============================================
 -- Widens is_demo_doctor() to recognize more than one demo dermatologist
 -- account. Mirrors kDoctorDemoEmails in app/lib/services/auth_service.dart:
@@ -999,7 +1013,7 @@ CREATE POLICY "Demo doctor can delete plan for consenting patients"
 -- reach the UI but see no data (RLS returns nothing).
 --
 -- Still DEMO-GRADE (hardcoded emails). Post-thesis this whole approach is
--- replaced by a proper role table â€” see 0002_doctor_demo.sql.
+-- replaced by a proper role table — see 0002_doctor_demo.sql.
 --
 -- Run AFTER 0002_doctor_demo.sql (and any time you add a demo doctor email).
 -- Safe to re-run.
@@ -1028,7 +1042,7 @@ COMMENT ON FUNCTION public.is_demo_doctor()
 
 
 -- ####################### 0008_prescriptions.sql #######################
--- DermaTrack â€” doctor prescriptions (with image attachments)
+-- DermaTrack — doctor prescriptions (with image attachments)
 -- ============================================
 -- Doctor-authored prescriptions sent to a specific patient. Unlike the
 -- single treatment_plans row (standing guidance), a patient can have many
@@ -1043,10 +1057,10 @@ COMMENT ON FUNCTION public.is_demo_doctor()
 -- folder; the demo doctor writes into consenting patients' folders.
 --
 -- Visibility (mirrors doctor_notes / treatment_plans):
---   â€¢ Patient can SELECT their own prescriptions â€” always.
---   â€¢ Demo doctor can SELECT/INSERT/UPDATE/DELETE prescriptions for patients
+--   • Patient can SELECT their own prescriptions — always.
+--   • Demo doctor can SELECT/INSERT/UPDATE/DELETE prescriptions for patients
 --     with shared_with_doctor = true.
---   â€¢ Patient cannot write â€” prescriptions are doctor-authored.
+--   • Patient cannot write — prescriptions are doctor-authored.
 --
 -- Run AFTER 0002_doctor_demo.sql. Safe to re-run.
 -- ============================================
@@ -1086,7 +1100,7 @@ CREATE TRIGGER prescriptions_updated_at
 
 
 -- ============================================
--- RLS â€” table
+-- RLS — table
 -- ============================================
 ALTER TABLE public.prescriptions ENABLE ROW LEVEL SECURITY;
 
@@ -1236,7 +1250,7 @@ CREATE POLICY "Demo doctor can delete prescription images"
 
 
 -- ####################### 0009_messages.sql #######################
--- DermaTrack â€” patient <-> dermatologist chat
+-- DermaTrack — patient <-> dermatologist chat
 -- ============================================
 -- A simple one-thread-per-patient message log. Each row is one message in
 -- the conversation between a patient and the demo dermatologist. patient_id
@@ -1244,9 +1258,9 @@ CREATE POLICY "Demo doctor can delete prescription images"
 -- sender_role say who wrote it.
 --
 -- Visibility:
---   â€¢ Patient can read + send messages in their own thread (patient_id = self).
---   â€¢ Demo doctor can read + send in threads of consenting patients.
---   â€¢ Messages are immutable (no update/delete policies).
+--   • Patient can read + send messages in their own thread (patient_id = self).
+--   • Demo doctor can read + send in threads of consenting patients.
+--   • Messages are immutable (no update/delete policies).
 --
 -- Realtime: the table is added to the supabase_realtime publication so the
 -- Flutter client can stream new messages live.
@@ -1327,7 +1341,7 @@ CREATE POLICY "Demo doctor can send in consenting threads"
         )
     );
 
--- No UPDATE/DELETE policies â€” messages are immutable once sent.
+-- No UPDATE/DELETE policies — messages are immutable once sent.
 
 
 -- ============================================
@@ -1337,6 +1351,12 @@ CREATE POLICY "Demo doctor can send in consenting threads"
 -- re-running is safe.
 DO $$
 BEGIN
+    -- Supabase provisions the supabase_realtime publication by default, but
+    -- create it if a fresh/edge-case project is missing it so the ADD below
+    -- can't fail.
+    IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+        CREATE PUBLICATION supabase_realtime;
+    END IF;
     IF NOT EXISTS (
         SELECT 1 FROM pg_publication_tables
         WHERE pubname = 'supabase_realtime'
@@ -1352,5 +1372,4 @@ END $$;
 -- Sanity check
 -- ============================================
 -- SELECT polname FROM pg_policy WHERE polrelid = 'public.messages'::regclass;  -- expect 4
-
 
