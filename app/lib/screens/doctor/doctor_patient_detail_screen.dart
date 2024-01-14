@@ -9,6 +9,8 @@ import '../../theme/app_theme.dart';
 import '../../widgets/scan_thumbnail.dart';
 import '../../widgets/severity_trend_chart.dart';
 import '../../widgets/skin_summary_card.dart';
+import '../chat_screen.dart';
+import 'doctor_prescriptions_screen.dart';
 import 'doctor_scan_compare_screen.dart';
 import 'doctor_scan_detail_screen.dart';
 
@@ -179,6 +181,32 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen> {
       appBar: AppBar(
         title: Text(widget.patient.displayLabel),
         actions: [
+          IconButton(
+            tooltip: 'Message patient',
+            icon: const Icon(Icons.chat_bubble_outline),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ChatScreen(
+                    patientId: widget.patient.id,
+                    title: widget.patient.displayLabel,
+                  ),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            tooltip: 'Prescriptions',
+            icon: const Icon(Icons.medication_outlined),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      DoctorPrescriptionsScreen(patient: widget.patient),
+                ),
+              );
+            },
+          ),
           IconButton(
             tooltip: 'Export PDF report',
             onPressed: _isExporting ? null : _exportReport,

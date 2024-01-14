@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 
 import '../models/scan.dart';
 import '../services/auth_service.dart';
@@ -10,7 +11,9 @@ import '../widgets/scan_thumbnail.dart';
 import '../widgets/severity_trend_chart.dart';
 import '../widgets/user_avatar_action.dart';
 import 'camera_screen.dart';
+import 'chat_screen.dart';
 import 'gallery_screen.dart';
+import 'prescriptions_screen.dart';
 import 'scan_detail_screen.dart';
 import 'scan_session/scan_session_screen.dart';
 
@@ -161,6 +164,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const _EmptyRecentScans()
           else
             _RecentScansRow(scans: recent),
+          const SizedBox(height: 24),
+          Text(
+            'From your dermatologist',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _CareCard(
+                  icon: Icons.medication_outlined,
+                  label: 'Prescriptions',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const PrescriptionsScreen(),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _CareCard(
+                  icon: Icons.chat_bubble_outline,
+                  label: 'Messages',
+                  onTap: () {
+                    final uid =
+                        supa.Supabase.instance.client.auth.currentUser?.id;
+                    if (uid == null) return;
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ChatScreen(
+                          patientId: uid,
+                          title: 'Your dermatologist',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 24),
           Text(
             'Tips for you',
@@ -407,6 +451,47 @@ class _StreakBadge extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Compact entry-point card for the "From your dermatologist" section
+/// (Prescriptions / Messages).
+class _CareCard extends StatelessWidget {
+  const _CareCard({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+          child: Column(
+            children: [
+              Icon(icon, color: AppTheme.primary, size: 26),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary(context),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
