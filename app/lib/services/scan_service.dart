@@ -211,6 +211,9 @@ class ScanService extends ChangeNotifier {
       //    All three are optional from the server's perspective: omitting
       //    region defaults to full_face on insert, omitting session_id
       //    keeps the row standalone, omitting face_bbox skips the filter.
+      // Hard timeout so a slow/hung analysis can't lock the capture button
+      // indefinitely. The Edge Function itself bounds its Roboflow/HF calls,
+      // but this is the client-side backstop (network stalls, cold starts).
       final response = await _client.functions.invoke(
         'analyze-scan',
         body: {
@@ -220,6 +223,10 @@ class ScanService extends ChangeNotifier {
           if (sessionId != null) 'session_id': sessionId,
           if (faceBbox != null) 'face_bbox': faceBbox,
         },
+      ).timeout(
+        const Duration(seconds: 45),
+        onTimeout: () => throw Exception(
+            'Analysis timed out. Please check your connection and try again.'),
       );
 
       if (response.status != 200) {

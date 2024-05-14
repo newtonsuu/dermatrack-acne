@@ -373,11 +373,20 @@ async function callHFClassifier(
   const base = spaceUrl.replace(/\/$/, "");
   const t0 = Date.now();
 
+  // Hard cap the whole HF round-trip. A sleeping free-tier Space can leave
+  // the SSE read blocked indefinitely (observed ~8 min hangs -> function 502).
+  // Aborting makes HF a bounded soft-dependency: on timeout we reject and the
+  // caller falls back to Roboflow-only grading.
+  const HF_TIMEOUT_MS = 20000;
+  const hfController = new AbortController();
+  const hfTimer = setTimeout(() => hfController.abort(), HF_TIMEOUT_MS);
+
   // Step 1: enqueue the prediction call. The body shape comes directly from
   // the cURL example on the Space's API docs page.
   const startRes = await fetch(`${base}/gradio_api/call/v2/predict`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    signal: hfController.signal,
     body: JSON.stringify({
       image: {
         path: signedUrl,
@@ -404,6 +413,7 @@ async function callHFClassifier(
   // 4. Step 2: open the SSE stream and read until completion or error.
   const pollRes = await fetch(`${base}/gradio_api/call/predict/${eventId}`, {
     headers: { "Accept": "text/event-stream" },
+    signal: hfController.signal,
   });
   if (!pollRes.ok || !pollRes.body) {
     throw new Error(
@@ -463,6 +473,7 @@ async function callHFClassifier(
   }
 
   await reader.cancel().catch(() => {});
+  clearTimeout(hfTimer);
   const latencyMs = Date.now() - t0;
 
   if (sseErr) {
