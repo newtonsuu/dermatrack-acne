@@ -192,6 +192,8 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
               ),
               const SizedBox(height: 20),
               _SeverityBadge(scan: scan),
+              const SizedBox(height: 12),
+              const _DisclaimerBanner(),
               const SizedBox(height: 16),
               _SummaryCard(scan: scan),
               if (scan.doctorNote != null &&
@@ -417,6 +419,44 @@ class _SeverityBadge extends StatelessWidget {
 }
 
 // ===== Summary paragraph =====
+
+/// Persistent non-diagnostic notice shown with every result. DermaTrack is a
+/// monitoring-support tool, not a diagnostic device — this makes that explicit
+/// to the user on the result screen.
+class _DisclaimerBanner extends StatelessWidget {
+  const _DisclaimerBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppTheme.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, size: 18, color: AppTheme.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'For monitoring support only — not a medical diagnosis. '
+              'DermaTrack helps you track changes over time; consult a '
+              'licensed dermatologist for diagnosis and treatment.',
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.35,
+                color: AppTheme.textSecondary(context),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _SummaryCard extends StatelessWidget {
   const _SummaryCard({required this.scan});
