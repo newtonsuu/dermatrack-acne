@@ -344,7 +344,9 @@ class AuthService extends ChangeNotifier {
       );
 
   bool _isValidEmail(String email) {
-    return RegExp(r'^[\w.\-]+@[\w\-]+\.[a-zA-Z]{2,}$').hasMatch(email);
+    // Accepts multi-label domains (e.g. user@mymail.mapua.edu.ph), not just
+    // single-label ones like user@gmail.com.
+    return RegExp(r'^[\w.\-]+@([\w\-]+\.)+[a-zA-Z]{2,}$').hasMatch(email);
   }
 }
 
