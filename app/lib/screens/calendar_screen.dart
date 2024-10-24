@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/scan.dart';
 import '../services/scan_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/facial_summary_card.dart';
 import '../widgets/user_avatar_action.dart';
 import 'scan_detail_screen.dart';
 
@@ -519,6 +520,13 @@ class _DayDetailSheet extends StatelessWidget {
   String _formattedDate() =>
       '${_monthNames[date.month - 1]} ${date.day}, ${date.year}';
 
+  /// The day's scans that belong to a guided per-region session (non-null
+  /// session_id). When there are 2+, we surface a consolidated facial
+  /// summary so the day's overall result is viewable after the fact, not
+  /// only at capture time.
+  List<Scan> get _sessionScans =>
+      scans.where((s) => s.sessionId != null).toList();
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -562,6 +570,29 @@ class _DayDetailSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
+            // Consolidated facial summary for the day's guided session — the
+            // same overall result the patient saw at capture time, now
+            // viewable later from the calendar.
+            if (_sessionScans.length >= 2) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: FacialSummaryCard(scans: _sessionScans),
+              ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  'SCANS THIS DAY',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary(context),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+            ],
             // shrinkWrap keeps the sheet tight to its content; Flexible
             // caps the height when there are many scans so the sheet
             // doesn't push past the top of the screen.
