@@ -653,11 +653,11 @@ ALTER TABLE public.scans
     DROP CONSTRAINT IF EXISTS scans_region_valid;
 ALTER TABLE public.scans
     ADD CONSTRAINT scans_region_valid CHECK (
-        region IN ('forehead', 'left_cheek', 'right_cheek', 'chin', 'full_face')
+        region IN ('forehead', 'left_cheek', 'right_cheek', 'chin', 'nose', 'full_face')
     );
 
 COMMENT ON COLUMN public.scans.region
-    IS 'Anatomical zone captured. One of: forehead, left_cheek, right_cheek, chin, full_face. Daily guided capture produces all five.';
+    IS 'Anatomical zone captured. One of: forehead, left_cheek, right_cheek, chin, nose, full_face. The guided per-region session captures the five facial zones; full_face is the standalone quick scan.';
 COMMENT ON COLUMN public.scans.session_id
     IS 'Groups the 5 scans of one guided daily-capture session. NULL for standalone single-region scans and for legacy rows predating session tracking.';
 

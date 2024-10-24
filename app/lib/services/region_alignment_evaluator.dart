@@ -246,6 +246,8 @@ class RegionAlignmentEvaluator {
         return _evaluateRightCheek(face, frameWidth, frameHeight);
       case ScanRegion.chin:
         return _evaluateChin(face, frameWidth, frameHeight);
+      case ScanRegion.nose:
+        return _evaluateNose(face, frameWidth, frameHeight);
     }
   }
 
@@ -472,6 +474,50 @@ class RegionAlignmentEvaluator {
       noFace: false,
       score: 1.0,
       hint: 'Chin in frame — hold steady.',
+    );
+  }
+
+  RegionAlignmentResult _evaluateNose(
+    Face face,
+    int frameW,
+    int frameH,
+  ) {
+    // Nose capture: a frontal, close-in shot of the central face. Unlike the
+    // cheeks/forehead/chin, ML Kit detects this posture reliably (the patient
+    // is facing the camera), so we can use the nose-base landmark. We nudge
+    // only when the nose is clearly off-center or the framing is too far;
+    // otherwise the oval template guides fine positioning.
+    final nose = face.landmarks[FaceLandmarkType.noseBase]?.position;
+    if (nose != null) {
+      final noseXRatio = nose.x / frameW;
+      if ((noseXRatio - 0.5).abs() > 0.22) {
+        return RegionAlignmentResult(
+          aligned: false,
+          noFace: false,
+          score: 0.6,
+          hint: noseXRatio < 0.5
+              ? 'Shift the phone slightly right to center your nose.'
+              : 'Shift the phone slightly left to center your nose.',
+        );
+      }
+    }
+
+    final areaRatio = (face.boundingBox.width * face.boundingBox.height) /
+        (frameW * frameH);
+    if (areaRatio < _universalMinBboxAreaRatio) {
+      return const RegionAlignmentResult(
+        aligned: false,
+        noFace: false,
+        score: 0.5,
+        hint: 'Move a bit closer — center your nose in the oval.',
+      );
+    }
+
+    return const RegionAlignmentResult(
+      aligned: true,
+      noFace: false,
+      score: 1.0,
+      hint: 'Nose centered — hold steady.',
     );
   }
 }

@@ -4,6 +4,37 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
+/// How often the user wants the scan reminder to fire. Persisted as the
+/// enum name so adding values later stays backward-compatible.
+enum ReminderFrequency {
+  /// Every day at the chosen time (the default, and what the fixed midday +
+  /// evening streak nudges are tuned for).
+  daily('daily', 'Every day'),
+
+  /// Every other day at the chosen time. flutter_local_notifications has no
+  /// native 2-day repeat, so this is scheduled as the next single instance and
+  /// re-armed each time the app launches (see [ScanReminderService.initialize]).
+  everyTwoDays('every_2_days', 'Every 2 days'),
+
+  /// Once a week, on the same weekday as when it was set, at the chosen time.
+  weekly('weekly', 'Weekly');
+
+  const ReminderFrequency(this.storageValue, this.label);
+
+  /// Stable string persisted to SharedPreferences.
+  final String storageValue;
+
+  /// Human-readable label for the settings UI.
+  final String label;
+
+  static ReminderFrequency fromStorage(String? value) {
+    return ReminderFrequency.values.firstWhere(
+      (f) => f.storageValue == value,
+      orElse: () => ReminderFrequency.daily,
+    );
+  }
+}
+
 /// Owns the on-device daily scan reminder.
 ///
 /// Surfaces a single recurring local notification fired at a user-chosen
@@ -29,6 +60,16 @@ class ScanReminderService extends ChangeNotifier {
   static const String _kEnabledKey = 'scan_reminder_enabled';
   static const String _kHourKey = 'scan_reminder_hour';
   static const String _kMinuteKey = 'scan_reminder_minute';
+  static const String _kFrequencyKey = 'scan_reminder_frequency';
+
+  /// One-shot migration flag. flutter_local_notifications caches scheduled
+  /// notifications as Gson-serialized JSON on Android; a cache written by an
+  /// older plugin/app version (or stripped of generic type info by R8) makes
+  /// `cancel()` throw `RuntimeException: Missing type parameter` the next time
+  /// we try to update a reminder. We clear that cache exactly once with
+  /// `cancelAll()` after upgrading, gated by this key so we don't wipe the
+  /// user's reminder on every launch.
+  static const String _kCachePurgedKey = 'scan_reminder_cache_purged_v2';
 
   /// Single notification ID used by the user-set daily scan reminder. Stable
   /// forever — bumping it would create a second notification instead of
@@ -60,7 +101,12 @@ class ScanReminderService extends ChangeNotifier {
   bool _enabled = false;
   int _hour = 9; // default 9 a.m. — friendly morning slot
   int _minute = 0;
+  ReminderFrequency _frequency = ReminderFrequency.daily;
   bool? _permissionGranted; // null = not asked yet; true/false after request
+
+  /// Guards against running the corrupted-cache `cancelAll()` recovery more
+  /// than once per process (it's a heavy, last-resort wipe).
+  bool _cachePurgeAttempted = false;
 
   /// Whether the patient has opted in to the daily scan reminder.
   bool get enabled => _enabled;
@@ -70,6 +116,9 @@ class ScanReminderService extends ChangeNotifier {
 
   /// Reminder fires at this minute (0-59). Defaults to 0 if unset.
   int get minute => _minute;
+
+  /// How often the reminder repeats. Defaults to [ReminderFrequency.daily].
+  ReminderFrequency get frequency => _frequency;
 
   /// `true` if OS notification permission is known to be granted; `false`
   /// if known denied; `null` if not yet requested.
@@ -114,7 +163,39 @@ class ScanReminderService extends ChangeNotifier {
       onDidReceiveNotificationResponse: _onTap,
     );
 
+    // Create the Android notification channel up front so it exists with the
+    // correct importance even before the first reminder is scheduled, and so
+    // its ID matches the AndroidNotificationDetails used when scheduling. The
+    // OS ignores a second create for an existing channel, so this is a no-op
+    // on later launches.
+    final androidImpl = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (androidImpl != null) {
+      try {
+        await androidImpl.createNotificationChannel(
+          const AndroidNotificationChannel(
+            _channelId,
+            'Daily scan reminders',
+            description:
+                'Reminds you to take your daily DermaTrack scan at the time you chose.',
+            importance: Importance.high,
+          ),
+        );
+      } catch (e) {
+        debugPrint('ScanReminderService.createNotificationChannel failed: $e');
+      }
+    }
+
     await _loadFromPrefs();
+
+    // One-time recovery from a corrupted scheduled-notification cache (the
+    // "Missing type parameter" PlatformException). Runs before any
+    // cancel/schedule so the bad entries are gone before we touch them.
+    await _maybePurgeCorruptCache();
+
+    // Mark initialized before the defensive re-schedule so the public mutators'
+    // _ensureInitialized() guard treats us as ready if one races in.
+    _isInitialized = true;
 
     // Defensive re-schedule. If the OS dropped the alarm (rare but
     // happens with aggressive battery optimization), this re-arms it.
@@ -128,8 +209,55 @@ class ScanReminderService extends ChangeNotifier {
       }
     }
 
-    _isInitialized = true;
     notifyListeners();
+  }
+
+  /// Lazily boots the service if a mutator is called before [initialize] has
+  /// finished. Without this, a fast tap on the reminder toggle right after
+  /// launch could schedule/cancel against an uninitialized plugin and throw.
+  Future<void> _ensureInitialized() async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+  }
+
+  /// Clears the plugin's scheduled-notification cache exactly once after this
+  /// fix ships. flutter_local_notifications stores scheduled notifications as
+  /// Gson-serialized JSON on Android; a cache written by an older plugin/app
+  /// version (or with generic type info stripped) makes a later `cancel()`
+  /// throw `RuntimeException: Missing type parameter`. Wiping it once with
+  /// `cancelAll()` clears the bad entries. Guarded by a persisted flag so a
+  /// healthy schedule is never nuked on every launch.
+  Future<void> _maybePurgeCorruptCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_kCachePurgedKey) ?? false) return;
+    try {
+      await _plugin.cancelAll();
+    } catch (e) {
+      debugPrint('ScanReminderService one-time cache purge failed: $e');
+    }
+    await prefs.setBool(_kCachePurgedKey, true);
+  }
+
+  /// Cancels a single notification, swallowing the corrupted-cache
+  /// "Missing type parameter" failure. If cancel throws, falls back to a
+  /// one-time `cancelAll()` so a poisoned cache can't block re-scheduling.
+  /// Callers must treat cancel as best-effort and always proceed to
+  /// (re-)schedule afterwards — zonedSchedule with the same ID overwrites.
+  Future<void> _safeCancel(int id) async {
+    try {
+      await _plugin.cancel(id);
+    } catch (e) {
+      debugPrint('ScanReminderService.cancel($id) failed: $e');
+      if (!_cachePurgeAttempted) {
+        _cachePurgeAttempted = true;
+        try {
+          await _plugin.cancelAll();
+        } catch (e2) {
+          debugPrint('ScanReminderService.cancelAll fallback failed: $e2');
+        }
+      }
+    }
   }
 
   // ----- Public mutators -----
@@ -139,6 +267,7 @@ class ScanReminderService extends ChangeNotifier {
   /// and surfaces the denied state via [permissionGranted] so the UI can
   /// tell the user to grant the permission in system settings.
   Future<void> setEnabled(bool value) async {
+    await _ensureInitialized();
     if (value == _enabled) return;
     if (value) {
       final granted = await _requestPermissionIfNeeded();
@@ -152,15 +281,18 @@ class ScanReminderService extends ChangeNotifier {
         notifyListeners();
         return;
       }
+      // Schedule FIRST, persist the "enabled" setting only after scheduling
+      // succeeds (spec requirement). If scheduling genuinely fails we leave
+      // the toggle off and surface the error to the caller.
+      await _scheduleReminder();
       _enabled = true;
       await _saveToPrefs();
-      await _scheduleReminder();
     } else {
       _enabled = false;
       await _saveToPrefs();
-      await _plugin.cancel(_reminderNotificationId);
-      await _plugin.cancel(_middayNotificationId);
-      await _plugin.cancel(_deadlineNotificationId);
+      await _safeCancel(_reminderNotificationId);
+      await _safeCancel(_middayNotificationId);
+      await _safeCancel(_deadlineNotificationId);
     }
     notifyListeners();
   }
@@ -173,13 +305,43 @@ class ScanReminderService extends ChangeNotifier {
       throw ArgumentError(
           'Invalid time $hour24:$minuteVal — expected 0–23, 0–59.');
     }
+    await _ensureInitialized();
     if (hour24 == _hour && minuteVal == _minute) return;
+    final prevHour = _hour;
+    final prevMinute = _minute;
     _hour = hour24;
     _minute = minuteVal;
-    await _saveToPrefs();
+    // Re-schedule before persisting so a scheduling failure doesn't leave a
+    // saved time that the OS never actually armed.
     if (_enabled) {
-      await _scheduleReminder();
+      try {
+        await _scheduleReminder();
+      } catch (e) {
+        _hour = prevHour;
+        _minute = prevMinute;
+        rethrow;
+      }
     }
+    await _saveToPrefs();
+    notifyListeners();
+  }
+
+  /// Updates how often the reminder repeats (daily / every 2 days / weekly).
+  /// Re-schedules immediately when enabled so the change takes effect now.
+  Future<void> setFrequency(ReminderFrequency value) async {
+    await _ensureInitialized();
+    if (value == _frequency) return;
+    final prev = _frequency;
+    _frequency = value;
+    if (_enabled) {
+      try {
+        await _scheduleReminder();
+      } catch (e) {
+        _frequency = prev;
+        rethrow;
+      }
+    }
+    await _saveToPrefs();
     notifyListeners();
   }
 
@@ -190,6 +352,7 @@ class ScanReminderService extends ChangeNotifier {
     _enabled = prefs.getBool(_kEnabledKey) ?? false;
     _hour = prefs.getInt(_kHourKey) ?? 9;
     _minute = prefs.getInt(_kMinuteKey) ?? 0;
+    _frequency = ReminderFrequency.fromStorage(prefs.getString(_kFrequencyKey));
   }
 
   Future<void> _saveToPrefs() async {
@@ -197,6 +360,7 @@ class ScanReminderService extends ChangeNotifier {
     await prefs.setBool(_kEnabledKey, _enabled);
     await prefs.setInt(_kHourKey, _hour);
     await prefs.setInt(_kMinuteKey, _minute);
+    await prefs.setString(_kFrequencyKey, _frequency.storageValue);
   }
 
   Future<bool> _requestPermissionIfNeeded() async {
@@ -231,36 +395,61 @@ class ScanReminderService extends ChangeNotifier {
   /// time. Cancels any existing reminder under the same notification ID
   /// first so we never accumulate duplicates.
   Future<void> _scheduleReminder() async {
-    // The user-set reminder at the chosen time.
+    final match = _matchComponentsFor(_frequency);
+
+    // The user-set reminder at the chosen time, repeating per the chosen
+    // frequency.
     await _scheduleDaily(
       id: _reminderNotificationId,
       hour: _hour,
       minute: _minute,
       title: "Time for today's scan",
       body:
-          'Open DermaTrack and capture your daily scan to keep your trend up to date.',
+          'Open DermaTrack and capture your scan to keep your trend up to date.',
+      match: match,
     );
 
-    // Fixed midday nudge.
-    await _scheduleDaily(
-      id: _middayNotificationId,
-      hour: _middayHour,
-      minute: 0,
-      title: 'Midday skin check',
-      body:
-          "Have you taken today's DermaTrack scan yet? Scanning around the same time keeps your trend accurate.",
-    );
+    // The fixed midday + evening streak nudges only make sense for a daily
+    // cadence. For every-2-days / weekly we cancel them so the app doesn't
+    // nag every single day when the user asked for a lighter rhythm.
+    if (_frequency == ReminderFrequency.daily) {
+      await _scheduleDaily(
+        id: _middayNotificationId,
+        hour: _middayHour,
+        minute: 0,
+        title: 'Midday skin check',
+        body:
+            "Have you taken today's DermaTrack scan yet? Scanning around the same time keeps your trend accurate.",
+        match: DateTimeComponents.time,
+      );
+      await _scheduleDaily(
+        id: _deadlineNotificationId,
+        hour: _deadlineHour,
+        minute: 0,
+        title: "Don't break your scan streak",
+        body:
+            'Only a few hours left to log today\'s scan. Open DermaTrack to keep your streak going.',
+        match: DateTimeComponents.time,
+      );
+    } else {
+      await _safeCancel(_middayNotificationId);
+      await _safeCancel(_deadlineNotificationId);
+    }
+  }
 
-    // Evening streak-deadline nudge — the Duolingo-style "don't lose your
-    // streak" prompt while there's still time before midnight.
-    await _scheduleDaily(
-      id: _deadlineNotificationId,
-      hour: _deadlineHour,
-      minute: 0,
-      title: "Don't break your scan streak",
-      body:
-          'Only a few hours left to log today\'s scan. Open DermaTrack to keep your streak going.',
-    );
+  /// Maps a [ReminderFrequency] to the `matchDateTimeComponents` value that
+  /// gives the OS the right repeat rule. Returns null for every-2-days, which
+  /// has no native repeat and is scheduled as a single next-instance that
+  /// [initialize] re-arms on each launch.
+  DateTimeComponents? _matchComponentsFor(ReminderFrequency f) {
+    switch (f) {
+      case ReminderFrequency.daily:
+        return DateTimeComponents.time;
+      case ReminderFrequency.weekly:
+        return DateTimeComponents.dayOfWeekAndTime;
+      case ReminderFrequency.everyTwoDays:
+        return null;
+    }
   }
 
   /// Schedules (or re-schedules) a single daily notification at [hour]:[minute].
@@ -272,8 +461,10 @@ class ScanReminderService extends ChangeNotifier {
     required int minute,
     required String title,
     required String body,
+    DateTimeComponents? match = DateTimeComponents.time,
   }) async {
-    await _plugin.cancel(id);
+    // Best-effort cancel: never let a corrupted cache block re-scheduling.
+    await _safeCancel(id);
 
     final scheduled = _nextInstanceOf(hour, minute);
 
@@ -296,21 +487,37 @@ class ScanReminderService extends ChangeNotifier {
       iOS: iosDetails,
     );
 
-    await _plugin.zonedSchedule(
-      id,
-      title,
-      body,
-      scheduled,
-      details,
-      // Required by flutter_local_notifications: interpret [scheduled] as an
-      // absolute wall-clock instant (not relative to a wall-clock change).
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      // matchDateTimeComponents: time → re-fires every day at the same
-      // wall-clock time. The OS handles the daily repeat for us.
-      matchDateTimeComponents: DateTimeComponents.time,
-    );
+    // Try an exact alarm first; if the OS denies SCHEDULE_EXACT_ALARM (common
+    // on Android 14+ where the user can revoke it), fall back to an inexact
+    // alarm so the reminder still fires rather than throwing and surfacing
+    // "Couldn't update reminder".
+    try {
+      await _plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduled,
+        details,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: match,
+      );
+    } catch (e) {
+      debugPrint('ScanReminderService exact schedule failed, retrying '
+          'inexact: $e');
+      await _plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduled,
+        details,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        matchDateTimeComponents: match,
+      );
+    }
   }
 
   /// Computes the next clock-time instance of [h]:[m] in the device's

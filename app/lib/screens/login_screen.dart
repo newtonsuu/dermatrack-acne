@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
-import '../theme/app_theme.dart';
 import '../widgets/brand_logo.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';

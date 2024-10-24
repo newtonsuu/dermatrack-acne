@@ -43,16 +43,12 @@ class ScanSessionScreen extends StatefulWidget {
   State<ScanSessionScreen> createState() => _ScanSessionScreenState();
 }
 
-/// The order in which the guided session walks through regions. Matches
-/// the dermatologist's recap (forehead, left cheek, right cheek, chin,
-/// plus the whole face).
-const List<ScanRegion> _sessionOrder = [
-  ScanRegion.forehead,
-  ScanRegion.leftCheek,
-  ScanRegion.rightCheek,
-  ScanRegion.chin,
-  ScanRegion.fullFace,
-];
+/// The order in which the guided session walks through regions: the five
+/// facial zones (forehead, left cheek, right cheek, chin, nose). Full-face is
+/// captured separately via the quick single scan. Sourced from the shared
+/// [kScanSessionRegions] constant so the completion screen's "X of N regions"
+/// count and this walk-through stay in sync.
+const List<ScanRegion> _sessionOrder = kScanSessionRegions;
 
 class _ScanSessionScreenState extends State<ScanSessionScreen>
     with WidgetsBindingObserver {

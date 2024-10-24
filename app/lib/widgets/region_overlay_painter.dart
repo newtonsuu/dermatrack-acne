@@ -150,6 +150,16 @@ class RegionOverlayPainter extends CustomPainter {
           width: ovalW,
           height: ovalH,
         );
+      case ScanRegion.nose:
+        // Central, smaller oval — the nose sits in the middle of the frame
+        // for a close frontal capture.
+        final ovalW = w * 0.45;
+        final ovalH = h * 0.42;
+        return Rect.fromCenter(
+          center: Offset(w / 2, h / 2),
+          width: ovalW,
+          height: ovalH,
+        );
     }
   }
 
