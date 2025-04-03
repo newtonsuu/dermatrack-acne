@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/role_switcher.dart';
 import 'doctor_patient_list_screen.dart';
 
 /// Top-level shell for the demo doctor account.
@@ -21,6 +22,12 @@ class DoctorShell extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Dermatologist view'),
         actions: [
+          if (AuthService.instance.canSwitchRoles)
+            IconButton(
+              tooltip: 'Switch role',
+              icon: const Icon(Icons.swap_horiz),
+              onPressed: () => showRoleSwitcher(context),
+            ),
           IconButton(
             tooltip: 'Sign out',
             icon: const Icon(Icons.logout),
