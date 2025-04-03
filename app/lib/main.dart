@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'screens/admin/admin_shell.dart';
 import 'screens/doctor/doctor_shell.dart';
 import 'screens/home_shell.dart';
 import 'screens/welcome_screen.dart';
@@ -9,6 +10,7 @@ import 'services/notification_center_service.dart';
 import 'services/notification_prefs_service.dart';
 import 'services/scan_reminder_service.dart';
 import 'services/security_activity_service.dart';
+import 'services/session_timeout_service.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
 
@@ -83,6 +85,8 @@ Future<void> main() async {
   SecurityActivityService.instance.init().catchError((Object e) {
     debugPrint('SecurityActivityService.init failed: $e');
   });
+  // Idle auto-logout (re-armed by pointer activity via the Listener in build).
+  SessionTimeoutService.instance.init();
 }
 
 class DermaTrackApp extends StatefulWidget {
@@ -111,13 +115,18 @@ class _DermaTrackAppState extends State<DermaTrackApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'DermaTrack',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
-      themeMode: ThemeController.instance.mode,
-      home: const _AuthGate(),
+    // Pointer Listener resets the idle session-timeout timer on any touch.
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (_) => SessionTimeoutService.instance.notifyActivity(),
+      child: MaterialApp(
+        title: 'DermaTrack',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light(),
+        darkTheme: AppTheme.dark(),
+        themeMode: ThemeController.instance.mode,
+        home: const _AuthGate(),
+      ),
     );
   }
 }
@@ -153,9 +162,65 @@ class _AuthGateState extends State<_AuthGate> {
   Widget build(BuildContext context) {
     final auth = AuthService.instance;
     if (!auth.isSignedIn) return const WelcomeScreen();
-    // Demo doctor account routes to the read-only doctor shell. Everyone else
-    // gets the normal patient experience.
+    // Wait for the role to resolve so we don't flash the wrong shell.
+    if (!auth.roleResolved) return const _RoleLoadingScreen();
+    // An admin can deactivate accounts; a deactivated user is blocked here.
+    if (!auth.accountActive) return const _DeactivatedScreen();
+    // Route by role (migration 0011): admin → AdminShell, doctor → DoctorShell,
+    // everyone else → the patient experience.
+    if (auth.isAdmin) return const AdminShell();
     if (auth.isDoctor) return const DoctorShell();
     return const HomeShell();
+  }
+}
+
+/// Shown briefly after sign-in while the user's role is fetched.
+class _RoleLoadingScreen extends StatelessWidget {
+  const _RoleLoadingScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
+    );
+  }
+}
+
+/// Shown when an admin has deactivated the signed-in account.
+class _DeactivatedScreen extends StatelessWidget {
+  const _DeactivatedScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.lock_outline, size: 56, color: Colors.redAccent),
+              const SizedBox(height: 16),
+              Text(
+                'Account deactivated',
+                style: Theme.of(context).textTheme.headlineSmall,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'This account has been deactivated by an administrator. '
+                'Please contact support if you believe this is a mistake.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () => AuthService.instance.signOut(),
+                child: const Text('Sign out'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

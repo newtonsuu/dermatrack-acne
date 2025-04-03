@@ -6,7 +6,19 @@ import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({
+    super.key,
+    this.accessLabel = 'Patient',
+    this.showRegister = true,
+  });
+
+  /// Which access type the user picked on the "Login as" screen. Themes the
+  /// subtitle; the actual role is still enforced by the account in the
+  /// database after sign-in.
+  final String accessLabel;
+
+  /// Whether to show the "Register here" link (patients only).
+  final bool showRegister;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -123,7 +135,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Sign in to continue tracking your skin.',
+                      widget.accessLabel == 'Patient'
+                          ? 'Sign in to continue tracking your skin.'
+                          : 'Sign in to your ${widget.accessLabel} account.',
                       style: Theme.of(context).textTheme.bodyMedium,
                       textAlign: TextAlign.center,
                     ),
@@ -200,20 +214,22 @@ class _LoginScreenState extends State<LoginScreen> {
                             )
                           : const Text('Sign in'),
                     ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'No account yet?',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        TextButton(
-                          onPressed: _isSubmitting ? null : _openRegister,
-                          child: const Text('Register here'),
-                        ),
-                      ],
-                    ),
+                    if (widget.showRegister) ...[
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'No account yet?',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          TextButton(
+                            onPressed: _isSubmitting ? null : _openRegister,
+                            child: const Text('Register here'),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
