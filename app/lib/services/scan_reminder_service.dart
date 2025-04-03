@@ -49,10 +49,10 @@ enum ReminderFrequency {
 /// reminder card on the profile screen; the service requests OS-level
 /// notification permission as part of that opt-in.
 ///
-/// Notification ID 1 is reserved exclusively for this reminder so we can
-/// cancel and re-schedule cleanly. If a future feature (doctor-note
-/// pushes, follow-up reminders, etc.) needs more local notifications,
-/// use IDs ≥ 100 to leave headroom.
+/// Notification ID 1001 is reserved exclusively for this reminder so we can
+/// cancel and re-schedule cleanly. The two fixed nudges use 1002/1003. If a
+/// future feature needs more local notifications, use IDs ≥ 1100 to leave
+/// headroom.
 class ScanReminderService extends ChangeNotifier {
   ScanReminderService._internal();
   static final ScanReminderService instance = ScanReminderService._internal();
@@ -74,14 +74,13 @@ class ScanReminderService extends ChangeNotifier {
   /// Single notification ID used by the user-set daily scan reminder. Stable
   /// forever — bumping it would create a second notification instead of
   /// replacing the first.
-  static const int _reminderNotificationId = 1;
+  static const int _reminderNotificationId = 1001;
 
   /// Fixed midday nudge ("have you scanned yet?") and an evening
-  /// streak-deadline nudge ("only a few hours left today"). IDs ≥ 100 per the
-  /// headroom convention noted above. Both fire daily and are gated by the
-  /// same [enabled] opt-in as the user-set reminder.
-  static const int _middayNotificationId = 100;
-  static const int _deadlineNotificationId = 101;
+  /// streak-deadline nudge ("only a few hours left today"). Both fire daily and
+  /// are gated by the same [enabled] opt-in as the user-set reminder.
+  static const int _middayNotificationId = 1002;
+  static const int _deadlineNotificationId = 1003;
 
   /// Wall-clock times for the two fixed nudges. Midday = 12:00; the evening
   /// deadline nudge fires at 21:00 so there's still time to scan before
@@ -143,10 +142,10 @@ class ScanReminderService extends ChangeNotifier {
     if (_isInitialized) return;
 
     tz_data.initializeTimeZones();
-    // We don't try to detect the device's local timezone here — the
-    // matchDateTimeComponents: DateTimeComponents.time scheduling pattern
-    // re-arms in the device's local time on each fire, so a tz_local
-    // approximation via DateTime.now() is sufficient.
+    // Point tz.local at a zone matching the device's current UTC offset so
+    // zonedSchedule fires at the right WALL-CLOCK time. Without this, tz.local
+    // defaults to UTC and the reminder would fire offset-hours early/late.
+    _configureLocalTimezone();
 
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosInit = DarwinInitializationSettings(
@@ -221,6 +220,26 @@ class ScanReminderService extends ChangeNotifier {
     }
   }
 
+  /// Sets `tz.local` to a timezone whose CURRENT offset matches the device's,
+  /// so scheduled wall-clock times are correct. Dependency-free: scans the tz
+  /// database for the first location with the same current UTC offset (good
+  /// for zones without DST, e.g. Asia/Manila where the app's users are). Falls
+  /// back to leaving tz.local at its default on any error.
+  void _configureLocalTimezone() {
+    try {
+      final offset = DateTime.now().timeZoneOffset;
+      for (final name in tz.timeZoneDatabase.locations.keys) {
+        final loc = tz.getLocation(name);
+        if (tz.TZDateTime.now(loc).timeZoneOffset == offset) {
+          tz.setLocalLocation(loc);
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('ScanReminderService._configureLocalTimezone failed: $e');
+    }
+  }
+
   /// Clears the plugin's scheduled-notification cache exactly once after this
   /// fix ships. flutter_local_notifications stores scheduled notifications as
   /// Gson-serialized JSON on Android; a cache written by an older plugin/app
@@ -233,10 +252,14 @@ class ScanReminderService extends ChangeNotifier {
     if (prefs.getBool(_kCachePurgedKey) ?? false) return;
     try {
       await _plugin.cancelAll();
+      // Mark done ONLY on success — if cancelAll threw (e.g. the cache itself
+      // is unreadable), leave the flag unset so we retry on the next launch
+      // instead of permanently giving up.
+      await prefs.setBool(_kCachePurgedKey, true);
     } catch (e) {
-      debugPrint('ScanReminderService one-time cache purge failed: $e');
+      debugPrint('ScanReminderService one-time cache purge failed '
+          '(will retry next launch): $e');
     }
-    await prefs.setBool(_kCachePurgedKey, true);
   }
 
   /// Cancels a single notification, swallowing the corrupted-cache
@@ -249,14 +272,7 @@ class ScanReminderService extends ChangeNotifier {
       await _plugin.cancel(id);
     } catch (e) {
       debugPrint('ScanReminderService.cancel($id) failed: $e');
-      if (!_cachePurgeAttempted) {
-        _cachePurgeAttempted = true;
-        try {
-          await _plugin.cancelAll();
-        } catch (e2) {
-          debugPrint('ScanReminderService.cancelAll fallback failed: $e2');
-        }
-      }
+      await _recoverCacheOnce();
     }
   }
 
@@ -395,6 +411,12 @@ class ScanReminderService extends ChangeNotifier {
   /// time. Cancels any existing reminder under the same notification ID
   /// first so we never accumulate duplicates.
   Future<void> _scheduleReminder() async {
+    // Validate the reminder time before touching the OS scheduler (req: never
+    // schedule with a null/invalid time). _hour/_minute are non-nullable ints
+    // loaded from prefs; this guards against an out-of-range value.
+    if (_hour < 0 || _hour > 23 || _minute < 0 || _minute > 59) {
+      throw StateError('Reminder time invalid ($_hour:$_minute) — not scheduling.');
+    }
     final match = _matchComponentsFor(_frequency);
 
     // The user-set reminder at the chosen time, repeating per the chosen
@@ -487,36 +509,65 @@ class ScanReminderService extends ChangeNotifier {
       iOS: iosDetails,
     );
 
-    // Try an exact alarm first; if the OS denies SCHEDULE_EXACT_ALARM (common
-    // on Android 14+ where the user can revoke it), fall back to an inexact
-    // alarm so the reminder still fires rather than throwing and surfacing
-    // "Couldn't update reminder".
     try {
-      await _plugin.zonedSchedule(
-        id,
-        title,
-        body,
-        scheduled,
-        details,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        matchDateTimeComponents: match,
-      );
+      await _zonedScheduleOnce(
+          id, title, body, scheduled, details,
+          AndroidScheduleMode.exactAllowWhileIdle, match);
     } catch (e) {
-      debugPrint('ScanReminderService exact schedule failed, retrying '
-          'inexact: $e');
-      await _plugin.zonedSchedule(
-        id,
-        title,
-        body,
-        scheduled,
-        details,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        matchDateTimeComponents: match,
-      );
+      // The "Missing type parameter" failure originates from a corrupted
+      // scheduled-notification cache that zonedSchedule reads before writing.
+      // Clear the cache once, then retry; if the exact alarm is denied
+      // (Android 14+), fall back to an inexact alarm so the reminder still
+      // fires instead of surfacing "Couldn't update reminder".
+      debugPrint('ScanReminderService schedule($id) failed: $e '
+          '— recovering cache and retrying.');
+      await _recoverCacheOnce();
+      try {
+        await _zonedScheduleOnce(
+            id, title, body, scheduled, details,
+            AndroidScheduleMode.exactAllowWhileIdle, match);
+      } catch (e2) {
+        debugPrint('ScanReminderService exact retry failed, using inexact: $e2');
+        await _zonedScheduleOnce(
+            id, title, body, scheduled, details,
+            AndroidScheduleMode.inexactAllowWhileIdle, match);
+      }
+    }
+  }
+
+  /// Single zonedSchedule call with the standard interpretation + repeat rule.
+  Future<void> _zonedScheduleOnce(
+    int id,
+    String title,
+    String body,
+    tz.TZDateTime when,
+    NotificationDetails details,
+    AndroidScheduleMode mode,
+    DateTimeComponents? match,
+  ) {
+    return _plugin.zonedSchedule(
+      id,
+      title,
+      body,
+      when,
+      details,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      androidScheduleMode: mode,
+      matchDateTimeComponents: match,
+    );
+  }
+
+  /// Clears the plugin's scheduled-notification cache once per process — the
+  /// recovery path for a corrupted cache ("Missing type parameter"). Guarded
+  /// so the heavy wipe runs at most once even if several schedules fail.
+  Future<void> _recoverCacheOnce() async {
+    if (_cachePurgeAttempted) return;
+    _cachePurgeAttempted = true;
+    try {
+      await _plugin.cancelAll();
+    } catch (e) {
+      debugPrint('ScanReminderService cache recovery (cancelAll) failed: $e');
     }
   }
 
