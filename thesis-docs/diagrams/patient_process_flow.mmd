@@ -1,0 +1,72 @@
+---
+title: "Figure 3.X. Patient Side Process Flow"
+---
+flowchart TD
+    A([Start]) --> B[Open DermaTrack]
+    B --> C{Does the patient\nhave an account?}
+
+    C -- No --> D[Register Account]
+    D --> E{Are registration\ndetails valid?}
+    E -- No --> D
+    E -- Yes --> F[System Creates Account]
+    F --> G[Login]
+
+    C -- Yes --> G
+
+    G --> H{Are login\ncredentials valid?}
+    H -- No --> G
+    H -- Yes --> I[Open Patient Dashboard]
+
+    I --> J[Patient Updates Profile\nand Medical History\n&#40;Optional&#41;]
+    J --> K[Patient Selects Scan Option]
+    K --> L{Choose Image\nInput Method}
+    L -- Capture Image --> M[Capture Image via Camera]
+    L -- Upload Image --> N[Upload Image from Device]
+    M --> O[System Checks\nImage Requirements]
+    N --> O
+
+    O --> P{Is the image\nacceptable?}
+    P -- No --> Q[Request Retake\nor Re-upload]
+    Q --> L
+    P -- Yes --> R[Submit Image for\nAcne Assessment]
+
+    R --> S[System Sends Image to\nAcne Detection and\nClassification APIs]
+    S --> T[System Receives Severity\nResult and Lesion Information]
+    T --> U[System Displays Severity Label,\nAcne Counts, Region,\nand Notes Area]
+    U --> V{Does the patient\nwant to save\nthe scan?}
+
+    V -- No --> W[Patient Discards Result]
+    W --> Z1([End])
+
+    V -- Yes --> X[Save Scan Record]
+    X --> Y[Patient Views Scan History]
+    Y --> AA{Does the patient\nwant to generate\na report?}
+
+    AA -- Yes --> AB[Generate Report]
+    AB --> AC{Does the patient want\nto consult or share\nwith a dermatologist?}
+    AA -- No --> AC
+
+    AC -- No --> Z2([End])
+    AC -- Yes --> AD[Share Scan or Report\nwith Dermatologist]
+    AD --> AE[Patient Sends Message\nto Dermatologist\n&#40;Optional&#41;]
+    AE --> AF{Is there a\ndermatologist\nresponse available?}
+
+    AF -- No --> AG[Show Pending or\nNo Response Status]
+    AG --> Z3([End])
+    AF -- Yes --> AH[Patient Views Dermatologist Note,\nPrescription, Treatment Plan,\nor Message]
+    AH --> Z4([End])
+
+    style A fill:#ffffff,stroke:#333,stroke-width:2px
+    style Z1 fill:#ffffff,stroke:#333,stroke-width:2px
+    style Z2 fill:#ffffff,stroke:#333,stroke-width:2px
+    style Z3 fill:#ffffff,stroke:#333,stroke-width:2px
+    style Z4 fill:#ffffff,stroke:#333,stroke-width:2px
+    style C fill:#dce8f5,stroke:#336699
+    style E fill:#dce8f5,stroke:#336699
+    style H fill:#dce8f5,stroke:#336699
+    style L fill:#dce8f5,stroke:#336699
+    style P fill:#dce8f5,stroke:#336699
+    style V fill:#dce8f5,stroke:#336699
+    style AA fill:#dce8f5,stroke:#336699
+    style AC fill:#dce8f5,stroke:#336699
+    style AF fill:#dce8f5,stroke:#336699
