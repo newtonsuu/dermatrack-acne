@@ -1,0 +1,37 @@
+@startuml activity_diagram
+' DermaTrack — Core end-to-end workflow: scan -> severity -> (consent) -> review -> follow-up
+title DermaTrack core workflow
+|Patient|
+start
+:Sign in (role resolved);
+:Capture scan (quick full-face\nor per-region session);
+|System|
+:Upload image to private Storage;
+:analyze-scan: Roboflow detect + HF classify;
+:Compute Cook grade -> Mild/Moderate/Severe;
+:Save scan row; show result + guidance\n(+ non-diagnostic disclaimer);
+|Patient|
+if (Result Moderate/Severe?) then (yes)
+  :Guidance nudges dermatologist review;
+  if (Grant doctor consent?) then (yes)
+    |Doctor|
+    :Patient appears in consenting list;
+    :Review scans, history, severity trend;
+    :Write note / treatment plan / prescription;
+    |System|
+    :Surfaces in patient Notification Center;
+  else (no)
+    |Patient|
+    :Continue self-monitoring;
+  endif
+else (no)
+  |Patient|
+  :Continue routine;
+endif
+|System|
+:Schedule reminders (daily / 2-day / weekly);
+:Severity-change & missed-scan alerts;
+|Patient|
+:Next scan (follow-up) -> trend updates;
+stop
+@enduml

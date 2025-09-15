@@ -1,0 +1,57 @@
+@startuml architecture_diagram
+' DermaTrack — Component / layered architecture
+skinparam componentStyle rectangle
+skinparam component { BackgroundColor #E8F4F4 BorderColor #1F8A8A }
+
+package "Mobile App (Flutter / Dart)" {
+  package "Presentation" {
+    [Patient screens]
+    [Doctor screens]
+    [Admin screens]
+    [Widgets / Theme]
+  }
+  package "Application / State\n(ChangeNotifier services)" {
+    [AuthService]
+    [ScanService]
+    [DoctorService]
+    [AdminService]
+    [Notification / Reminder /\nSecurity services]
+  }
+  [supabase_flutter SDK] as SDK
+}
+
+cloud "Supabase (BaaS)" {
+  [Auth (GoTrue)] as AUTH
+  database "PostgreSQL\n+ Row-Level Security" as PG
+  [Storage\n(private buckets)] as STORE
+  [Realtime] as RT
+  [Edge Function:\nanalyze-scan (Deno)] as EF
+}
+
+cloud "External ML APIs" {
+  [Roboflow] as RB
+  [Hugging Face Space] as HF
+}
+
+node "CI/CD" {
+  [GitHub Actions] as GA
+  [GitHub Releases\n(APK)] as REL
+}
+
+[Patient screens] --> [AuthService]
+[Doctor screens] --> [DoctorService]
+[Admin screens] --> [AdminService]
+[AuthService] --> SDK
+[ScanService] --> SDK
+[DoctorService] --> SDK
+[AdminService] --> SDK
+SDK --> AUTH : HTTPS
+SDK --> PG : HTTPS (PostgREST, RLS)
+SDK --> STORE : HTTPS (signed URLs)
+SDK --> RT : WSS
+[ScanService] --> EF : invoke (HTTPS)
+EF --> RB : HTTPS
+EF --> HF : HTTPS
+EF --> PG : insert scan
+GA --> REL : build & publish
+@enduml

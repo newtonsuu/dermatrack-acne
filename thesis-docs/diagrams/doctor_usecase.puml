@@ -1,0 +1,46 @@
+@startuml doctor_usecase
+' DermaTrack — Doctor use cases (screens/doctor/* + services/doctor_service,
+' doctor_report_service, prescription_service, chat_service). All patient data
+' access is consent-gated by profiles.shared_with_doctor = true (RLS).
+left to right direction
+skinparam actorStyle awesome
+actor "Doctor\n(Dermatologist)" as D
+
+rectangle "Doctor capabilities (consent-gated)" {
+  usecase "Log in / Sign out" as D1
+  usecase "View consenting patient list\n(search, sort, 'needs review')" as D2
+  usecase "View patient scans" as D3
+  usecase "View patient clinical history" as D4
+  usecase "View severity trend" as D5
+  usecase "Compare two scans (progression)" as D6
+  usecase "Write / edit doctor note on a scan" as D7
+  usecase "Set / edit treatment plan" as D8
+  usecase "Issue prescription (+ images)" as D9
+  usecase "Chat with patient" as D10
+  usecase "Export consultation PDF report" as D11
+  usecase "Edit / unsend own message" as D12
+}
+
+D --> D1
+D --> D2
+D --> D3
+D --> D4
+D --> D5
+D --> D6
+D --> D7
+D --> D8
+D --> D9
+D --> D10
+D --> D11
+D --> D12
+
+D12 .> D10 : <<extend>>
+D2 .> D3 : <<include>>
+D3 .> D7 : <<extend>>
+D6 .> D3 : <<include>>
+note bottom of D2
+  doctor_service.loadPatients() returns ONLY
+  profiles where shared_with_doctor = true.
+  Doctors never see all patients by default.
+end note
+@enduml

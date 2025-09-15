@@ -1,0 +1,25 @@
+@startuml rbac_matrix
+' DermaTrack — RBAC permission matrix (extra figure).
+' Enforced by Postgres RLS: is_demo_doctor()=role 'doctor', is_admin()=role 'admin',
+' has_active_break_glass(); doctor access additionally requires patient consent.
+title DermaTrack RBAC permission matrix (RLS-enforced)
+legend center
+|= Capability |= Patient |= Doctor |= Admin |
+| Own scans + images (CRUD) | Yes | - | - |
+| Own clinical intake (CRUD) | Yes | read* | - |
+| Own notes / plan / prescriptions | read | write* | - |
+| Messages | own thread | consenting* | - |
+| Grant/revoke doctor consent | Yes | - | - |
+| Read consenting patients' records | - | Yes* | - |
+| Manage users / roles | - | - | Yes |
+| Activate / deactivate accounts | - | - | Yes |
+| Read audit log | self/related | - | all |
+| Break-glass (open/revoke) | - | - | Yes |
+| Read patient rows via break-glass | - | - | active session |
+| Edit / unsend own message | own | own | - |
+| Moderate chats (read all / remove message) | - | - | Yes |
+| Restrict user messaging | - | - | Yes |
+|---
+| * = only when patient consent (shared_with_doctor = true) ||||
+endlegend
+@enduml

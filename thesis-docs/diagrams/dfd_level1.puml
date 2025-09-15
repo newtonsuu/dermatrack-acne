@@ -1,0 +1,67 @@
+@startuml dfd_level1
+' DermaTrack — Data Flow Diagram, Level 1
+' Processes (1.0-5.0), data stores (Supabase tables + Storage), external entities.
+left to right direction
+skinparam usecase { BackgroundColor #E8F4F4 BorderColor #1F8A8A }
+skinparam rectangle { BackgroundColor #FDF6E3 BorderColor black }
+skinparam database { BackgroundColor #FFF3E0 BorderColor #FF9800 }
+
+rectangle "Patient" as P
+rectangle "Doctor" as D
+rectangle "Admin" as A
+rectangle "Roboflow" as RB
+rectangle "Hugging Face" as HF
+
+usecase "1.0\nAuthenticate\n& route role" as P1
+usecase "2.0\nScan & analyze" as P2
+usecase "3.0\nReview & treat\n(consent-gated)" as P3
+usecase "4.0\nMessaging" as P4
+usecase "5.0\nAdmin &\nbreak-glass" as P5
+
+database "profiles" as Dprof
+database "scans" as Dscan
+database "doctor_notes /\ntreatment_plans /\nprescriptions" as Dclin
+database "messages" as Dmsg
+database "audit_log /\nbreak_glass_sessions" as Daud
+database "Storage\n(images)" as Dstore
+
+' Auth
+P --> P1 : credentials
+D --> P1 : credentials
+A --> P1 : credentials
+P1 --> Dprof : read role/is_active
+P1 --> Daud : sign-in event
+
+' Scan & analyze
+P --> P2 : image + region
+P2 --> Dstore : store image
+P2 --> RB : image
+RB --> P2 : predictions
+P2 --> HF : image
+HF --> P2 : severity
+P2 --> Dscan : write grade/counts
+Dscan --> P : result + history + trend
+
+' Review & treat
+P --> Dprof : set shared_with_doctor (consent)
+P3 --> Dprof : check consent
+Dscan --> P3 : consenting patient scans
+Dstore --> P3 : signed image URLs
+D --> P3 : note / plan / prescription
+P3 --> Dclin : write
+Dclin --> P : doctor note / plan / Rx
+
+' Messaging
+P --> P4 : message
+D --> P4 : message
+P4 --> Dmsg : insert (Realtime)
+Dmsg --> P : live thread
+Dmsg --> D : live thread
+
+' Admin & break-glass
+A --> P5 : role change / (de)activate / break-glass
+P5 --> Dprof : update role/is_active
+P5 --> Daud : audit + break_glass_sessions
+Dscan --> P5 : read-only (active break-glass only)
+Daud --> A : audit log / monitoring
+@enduml
