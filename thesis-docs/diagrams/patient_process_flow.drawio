@@ -1,0 +1,276 @@
+<mxfile host="app.diagrams.net" modified="2026-06-20" agent="Claude" version="21.0">
+  <diagram id="patient-flow" name="Patient Process Flow">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="3500" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- START -->
+        <mxCell id="v1" value="Start" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#ffffff;strokeColor=#333333;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="20" width="120" height="40" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v2" value="Open DermaTrack" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="100" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v3" value="Does the patient&#xa;have an account?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dce8f5;strokeColor=#336699;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="210" width="200" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- REGISTRATION BRANCH (left) -->
+        <mxCell id="v4" value="Register Account" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="310" width="180" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v5" value="Are registration&#xa;details valid?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dce8f5;strokeColor=#336699;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="420" width="180" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v6" value="System Creates Account" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="550" width="180" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- LOGIN -->
+        <mxCell id="v7" value="Login" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="660" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v8" value="Are login credentials&#xa;valid?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dce8f5;strokeColor=#336699;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="770" width="200" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- DASHBOARD -->
+        <mxCell id="v9" value="Open Patient Dashboard" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="900" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v10" value="Patient Updates Profile and&#xa;Medical History (Optional)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="1000" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v11" value="Patient Selects Scan Option" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="1100" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- IMAGE INPUT -->
+        <mxCell id="v12" value="Choose Image&#xa;Input Method" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dce8f5;strokeColor=#336699;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="1210" width="200" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v13" value="Capture Image&#xa;via Camera" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1350" width="160" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v14" value="Upload Image&#xa;from Device" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="580" y="1350" width="160" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v15" value="System Checks&#xa;Image Requirements" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="1470" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v16" value="Is the image&#xa;acceptable?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dce8f5;strokeColor=#336699;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="1580" width="200" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v17" value="Request Retake&#xa;or Re-upload" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="570" y="1590" width="180" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- ASSESSMENT -->
+        <mxCell id="v18" value="Submit Image for&#xa;Acne Assessment" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="1720" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v19" value="System Sends Image to Acne&#xa;Detection and Classification APIs" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="290" y="1820" width="220" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v20" value="System Receives Severity Result&#xa;and Lesion Information" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="290" y="1920" width="220" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v21" value="System Displays Severity Label,&#xa;Acne Counts, Region,&#xa;and Notes Area" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="290" y="2020" width="220" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- SAVE DECISION -->
+        <mxCell id="v22" value="Does the patient&#xa;want to save the scan?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dce8f5;strokeColor=#336699;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="2140" width="200" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v23" value="Patient Discards Result" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="2150" width="180" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v24" value="End" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#ffffff;strokeColor=#333333;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="70" y="2260" width="120" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- SAVE & HISTORY -->
+        <mxCell id="v25" value="Save Scan Record" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="2280" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v26" value="Patient Views Scan History" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="2380" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- REPORT DECISION -->
+        <mxCell id="v27" value="Does the patient want&#xa;to generate a report?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dce8f5;strokeColor=#336699;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="2490" width="200" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v28" value="Generate Report" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="570" y="2500" width="160" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- CONSULT DECISION -->
+        <mxCell id="v29" value="Does the patient want to&#xa;consult or share with&#xa;a dermatologist?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dce8f5;strokeColor=#336699;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="2630" width="200" height="90" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v30" value="End" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#ffffff;strokeColor=#333333;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="70" y="2655" width="120" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- CONSULT -->
+        <mxCell id="v31" value="Share Scan or Report&#xa;with Dermatologist" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="2780" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v32" value="Patient Sends Message&#xa;to Dermatologist (Optional)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="2880" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- RESPONSE DECISION -->
+        <mxCell id="v33" value="Is there a dermatologist&#xa;response available?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dce8f5;strokeColor=#336699;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="2990" width="200" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v34" value="Show Pending or&#xa;No Response Status" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="570" y="3000" width="180" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v35" value="End" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#ffffff;strokeColor=#333333;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="600" y="3110" width="120" height="40" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v36" value="Patient Views Dermatologist Note,&#xa;Prescription, Treatment Plan,&#xa;or Message" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="290" y="3120" width="220" height="70" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v37" value="End" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#ffffff;strokeColor=#333333;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="3240" width="120" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== EDGES ===== -->
+
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v1" target="v2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v2" target="v3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Has account? No → Register -->
+        <mxCell id="e3" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" edge="1" source="v3" target="v4" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Has account? Yes → Login -->
+        <mxCell id="e4" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" source="v3" target="v7" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v4" target="v5" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Invalid registration → loop back -->
+        <mxCell id="e6" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="v5" target="v4" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="260" y="460"/><mxPoint x="260" y="340"/></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e7" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v5" target="v6" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Creates account → Login -->
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v6" target="v7" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="130" y="640"/><mxPoint x="400" y="640"/></Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v7" target="v8" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Invalid login → loop back -->
+        <mxCell id="e10" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="v8" target="v7" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="550" y="810"/><mxPoint x="550" y="690"/></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e11" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v8" target="v9" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v9" target="v10" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e13" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v10" target="v11" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e14" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v11" target="v12" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Image input → Capture / Upload -->
+        <mxCell id="e15" value="Capture Image" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" edge="1" source="v12" target="v13" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e16" value="Upload Image" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" source="v12" target="v14" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Both → Check Requirements -->
+        <mxCell id="e17" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v13" target="v15" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="140" y="1460"/><mxPoint x="400" y="1460"/></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e18" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v14" target="v15" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="660" y="1460"/><mxPoint x="400" y="1460"/></Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="e19" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v15" target="v16" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Not acceptable → Request retake (right) -->
+        <mxCell id="e20" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" source="v16" target="v17" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Retake → loop back to image input choice -->
+        <mxCell id="e21" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="v17" target="v12" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="760" y="1590"/><mxPoint x="760" y="1250"/></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e22" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" source="v16" target="v18" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e23" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v18" target="v19" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e24" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v19" target="v20" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e25" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v20" target="v21" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e26" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v21" target="v22" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Save scan? No → Discard (left) -->
+        <mxCell id="e27" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" edge="1" source="v22" target="v23" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e28" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v23" target="v24" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Save scan? Yes → Save record -->
+        <mxCell id="e29" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" source="v22" target="v25" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e30" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v25" target="v26" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e31" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v26" target="v27" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Generate report? Yes → right -->
+        <mxCell id="e32" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" source="v27" target="v28" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Generate Report → merge to Consult? -->
+        <mxCell id="e33" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v28" target="v29" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="650" y="2620"/><mxPoint x="400" y="2620"/></Array>
+          </mxGeometry>
+        </mxCell>
+        <!-- Generate report? No → Consult? -->
+        <mxCell id="e34" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" source="v27" target="v29" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Consult? No → End (left) -->
+        <mxCell id="e35" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" edge="1" source="v29" target="v30" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Consult? Yes → Share -->
+        <mxCell id="e36" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" source="v29" target="v31" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e37" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v31" target="v32" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e38" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v32" target="v33" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Response? No → Pending (right) -->
+        <mxCell id="e39" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" source="v33" target="v34" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e40" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v34" target="v35" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Response? Yes → View -->
+        <mxCell id="e41" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" source="v33" target="v36" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e42" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v36" target="v37" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
