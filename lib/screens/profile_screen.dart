@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -38,10 +36,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _openPictureSheet() async {
-    final hasPicture = ProfileService.instance.profilePicturePath != null;
+    final hasPicture = ProfileService.instance.profilePictureUrl != null;
     final action = await showModalBottomSheet<_PictureAction>(
       context: context,
-      backgroundColor: AppTheme.surface,
+      backgroundColor: AppTheme.surface(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -54,7 +52,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               height: 4,
               width: 40,
               decoration: BoxDecoration(
-                color: const Color(0xFFE6EBEE),
+                color: AppTheme.border(context),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -110,7 +108,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         maxWidth: 1000,
       );
       if (file != null) {
-        await ProfileService.instance.setProfilePicture(file.path);
+        // Read bytes via the XFile API so this works on web, mobile, and
+        // desktop alike — dart:io's File class doesn't exist on Flutter Web.
+        final bytes = await file.readAsBytes();
+        await ProfileService.instance.setProfilePicture(bytes);
       }
     } catch (e) {
       if (!mounted) return;
@@ -123,11 +124,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final user = AuthService.instance.currentUser;
-    final picturePath = ProfileService.instance.profilePicturePath;
+    final pictureUrl = ProfileService.instance.profilePictureUrl;
     final recentScans = ProfileService.instance.recentScans();
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: AppTheme.background(context),
       appBar: AppBar(
         title: const Text('Profile'),
         actions: const [UserAvatarAction()],
@@ -138,7 +139,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _ProfileHeader(
             displayName: user?.displayName ?? 'DermaTrack User',
             email: user?.email ?? '',
-            picturePath: picturePath,
+            pictureUrl: pictureUrl,
             onEditPicture: _openPictureSheet,
           ),
           const SizedBox(height: 24),
@@ -165,13 +166,13 @@ class _ProfileHeader extends StatelessWidget {
   const _ProfileHeader({
     required this.displayName,
     required this.email,
-    required this.picturePath,
+    required this.pictureUrl,
     required this.onEditPicture,
   });
 
   final String displayName;
   final String email;
-  final String? picturePath;
+  final String? pictureUrl;
   final VoidCallback onEditPicture;
 
   String get _initials {
@@ -190,7 +191,7 @@ class _ProfileHeader extends StatelessWidget {
         child: Row(
           children: [
             _Avatar(
-              picturePath: picturePath,
+              pictureUrl: pictureUrl,
               initials: _initials,
               onEdit: onEditPicture,
             ),
@@ -201,18 +202,18 @@ class _ProfileHeader extends StatelessWidget {
                 children: [
                   Text(
                     displayName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
+                      color: AppTheme.textPrimary(context),
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     email,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
+                    style: TextStyle(
+                      color: AppTheme.textSecondary(context),
                       fontSize: 13,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -229,12 +230,12 @@ class _ProfileHeader extends StatelessWidget {
 
 class _Avatar extends StatelessWidget {
   const _Avatar({
-    required this.picturePath,
+    required this.pictureUrl,
     required this.initials,
     required this.onEdit,
   });
 
-  final String? picturePath;
+  final String? pictureUrl;
   final String initials;
   final VoidCallback onEdit;
 
@@ -254,11 +255,13 @@ class _Avatar extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             clipBehavior: Clip.antiAlias,
-            child: picturePath != null
-                ? Image.file(
-                    File(picturePath!),
+            child: pictureUrl != null
+                ? Image.network(
+                    pictureUrl!,
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => _InitialsAvatar(initials),
+                    loadingBuilder: (_, child, progress) =>
+                        progress == null ? child : _InitialsAvatar(initials),
                   )
                 : _InitialsAvatar(initials),
           ),

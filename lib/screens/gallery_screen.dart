@@ -14,7 +14,7 @@ class GalleryScreen extends StatelessWidget {
     final scans = ProfileService.instance.scans;
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: AppTheme.background(context),
       appBar: AppBar(title: const Text('All scans')),
       body: scans.isEmpty
           ? const _EmptyState()

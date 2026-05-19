@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 
+import 'calendar_screen.dart';
 import 'camera_screen.dart';
 import 'dashboard_screen.dart';
 import 'profile_screen.dart';
 
-/// Bottom-nav container hosting the three primary tabs.
-/// Camera launches as a full-screen flow rather than a tab, but it's still
-/// reachable from here so the dashboard, scan flow, and profile share one shell.
+/// Bottom-nav container hosting the primary tabs.
+///
+/// Tabs:
+///   Home      — Dashboard (today's status + quick scan)
+///   Scan      — Camera flow
+///   Calendar  — Monthly grid of scan history
+///   Profile   — Account + recent scans
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
 
@@ -20,6 +25,7 @@ class _HomeShellState extends State<HomeShell> {
   static const List<Widget> _tabs = [
     DashboardScreen(),
     CameraScreen(),
+    CalendarScreen(),
     ProfileScreen(),
   ];
 
@@ -43,6 +49,11 @@ class _HomeShellState extends State<HomeShell> {
             icon: Icon(Icons.camera_alt_outlined),
             selectedIcon: Icon(Icons.camera_alt),
             label: 'Scan',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.calendar_month_outlined),
+            selectedIcon: Icon(Icons.calendar_month),
+            label: 'Calendar',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),

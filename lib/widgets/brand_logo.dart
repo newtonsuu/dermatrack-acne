@@ -27,12 +27,12 @@ class BrandLogo extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        const Text(
+        Text(
           'DermaTrack',
           style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.w700,
-            color: AppTheme.textPrimary,
+            color: AppTheme.textPrimary(context),
             letterSpacing: 0.3,
           ),
         ),

@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -21,7 +21,9 @@ class CameraScreen extends StatefulWidget {
 
 class _CameraScreenState extends State<CameraScreen> {
   final ImagePicker _picker = ImagePicker();
-  File? _capturedImage;
+  // Hold raw bytes instead of a dart:io File so the screen works on web,
+  // mobile, and desktop. XFile.readAsBytes() is cross-platform; File isn't.
+  Uint8List? _capturedImageBytes;
   bool _isPicking = false;
   String? _errorMessage;
 
@@ -39,7 +41,9 @@ class _CameraScreenState extends State<CameraScreen> {
       );
       if (!mounted) return;
       if (photo != null) {
-        setState(() => _capturedImage = File(photo.path));
+        final bytes = await photo.readAsBytes();
+        if (!mounted) return;
+        setState(() => _capturedImageBytes = bytes);
       }
     } catch (e) {
       if (!mounted) return;
@@ -62,7 +66,9 @@ class _CameraScreenState extends State<CameraScreen> {
       );
       if (!mounted) return;
       if (photo != null) {
-        setState(() => _capturedImage = File(photo.path));
+        final bytes = await photo.readAsBytes();
+        if (!mounted) return;
+        setState(() => _capturedImageBytes = bytes);
       }
     } catch (e) {
       if (!mounted) return;
@@ -73,23 +79,23 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   void _retake() {
-    setState(() => _capturedImage = null);
+    setState(() => _capturedImageBytes = null);
   }
 
   void _useThisPhoto() {
-    // Placeholder — in week 2 this will hand off to the analysis pipeline.
+    // Placeholder — wires to ScanService when the API integration lands.
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Saved! Analysis pipeline lands in week 2.'),
+        content: Text('Saved! Analysis pipeline coming soon.'),
       ),
     );
-    setState(() => _capturedImage = null);
+    setState(() => _capturedImageBytes = null);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: AppTheme.background(context),
       appBar: AppBar(
         title: const Text('New scan'),
         leading: Navigator.of(context).canPop()
@@ -103,7 +109,9 @@ class _CameraScreenState extends State<CameraScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
-          child: _capturedImage == null ? _buildEmptyState() : _buildPreview(),
+          child: _capturedImageBytes == null
+              ? _buildEmptyState()
+              : _buildPreview(),
         ),
       ),
     );
@@ -116,9 +124,9 @@ class _CameraScreenState extends State<CameraScreen> {
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              color: AppTheme.surface,
+              color: AppTheme.surface(context),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE6EBEE)),
+              border: Border.all(color: AppTheme.border(context)),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -136,12 +144,12 @@ class _CameraScreenState extends State<CameraScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                const Text(
+                Text(
                   'Capture your selfie',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
+                    color: AppTheme.textPrimary(context),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -194,8 +202,8 @@ class _CameraScreenState extends State<CameraScreen> {
         Expanded(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
-            child: Image.file(
-              _capturedImage!,
+            child: Image.memory(
+              _capturedImageBytes!,
               fit: BoxFit.cover,
               width: double.infinity,
             ),
@@ -228,9 +236,9 @@ class _TipRow extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 18, color: AppTheme.textSecondary),
+        Icon(icon, size: 18, color: AppTheme.textSecondary(context)),
         const SizedBox(width: 8),
-        Text(text, style: const TextStyle(color: AppTheme.textSecondary)),
+        Text(text, style: TextStyle(color: AppTheme.textSecondary(context))),
       ],
     );
   }
