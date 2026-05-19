@@ -57,17 +57,23 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     if (!mounted) return;
+    if (result == null) {
+      // Success — AuthGate has swapped the underlying route to HomeShell.
+      // Pop back to the root so the user lands on the dashboard, not on this
+      // screen sitting on top of HomeShell.
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      return;
+    }
+
     setState(() {
       _isSubmitting = false;
-      if (result != null) {
-        if (result.field == AuthField.email) {
-          _emailError = result.message;
-        } else if (result.field == AuthField.password) {
-          _passwordError = result.message;
-        }
-        // Re-run validators so the error message shows under the right field.
-        _formKey.currentState?.validate();
+      if (result.field == AuthField.email) {
+        _emailError = result.message;
+      } else if (result.field == AuthField.password) {
+        _passwordError = result.message;
       }
+      // Re-run validators so the error message shows under the right field.
+      _formKey.currentState?.validate();
     });
   }
 
@@ -90,6 +96,14 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

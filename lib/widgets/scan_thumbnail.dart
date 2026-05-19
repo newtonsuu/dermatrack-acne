@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../models/scan.dart';
@@ -41,8 +39,17 @@ class ScanThumbnail extends StatelessWidget {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(14),
+                    // scan.imagePath holds a signed URL once ScanService is
+                    // wired up. Falls back to the severity-color placeholder
+                    // for mock scans (where imagePath is null) and for any
+                    // URL fetch failure (e.g., expired signed URL).
                     child: scan.imagePath != null
-                        ? Image.file(File(scan.imagePath!), fit: BoxFit.cover)
+                        ? Image.network(
+                            scan.imagePath!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                _PlaceholderTile(color: scan.severityColor),
+                          )
                         : _PlaceholderTile(color: scan.severityColor),
                   ),
                   Positioned(
@@ -59,9 +66,9 @@ class ScanThumbnail extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               _formatDate(scan.takenAt),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: AppTheme.textSecondary,
+                color: AppTheme.textSecondary(context),
                 fontWeight: FontWeight.w500,
               ),
             ),
