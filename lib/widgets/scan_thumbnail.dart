@@ -6,9 +6,9 @@ import '../theme/app_theme.dart';
 /// Compact card representing a single scan in the profile preview row or in
 /// the full gallery grid.
 ///
-/// If [scan.imagePath] is set, the image fills the top portion; otherwise a
-/// gradient placeholder in the severity color is shown. A grade chip is pinned
-/// to the top-right and the date label sits below.
+/// If [scan.imageUrl] is set, the signed-URL image fills the top portion;
+/// otherwise a gradient placeholder in the severity color is shown. A grade
+/// chip is pinned to the top-right and the date label sits below.
 class ScanThumbnail extends StatelessWidget {
   const ScanThumbnail({
     super.key,
@@ -39,13 +39,13 @@ class ScanThumbnail extends StatelessWidget {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(14),
-                    // scan.imagePath holds a signed URL once ScanService is
-                    // wired up. Falls back to the severity-color placeholder
-                    // for mock scans (where imagePath is null) and for any
-                    // URL fetch failure (e.g., expired signed URL).
-                    child: scan.imagePath != null
+                    // scan.imageUrl is the signed URL ScanService resolved
+                    // when loading the scan. Falls back to the severity-color
+                    // placeholder while loading and for any fetch failure
+                    // (e.g. expired signed URL).
+                    child: scan.imageUrl != null
                         ? Image.network(
-                            scan.imagePath!,
+                            scan.imageUrl!,
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) =>
                                 _PlaceholderTile(color: scan.severityColor),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'screens/doctor/doctor_shell.dart';
 import 'screens/home_shell.dart';
 import 'screens/welcome_screen.dart';
 import 'services/auth_service.dart';
@@ -112,8 +113,11 @@ class _AuthGateState extends State<_AuthGate> {
 
   @override
   Widget build(BuildContext context) {
-    return AuthService.instance.isSignedIn
-        ? const HomeShell()
-        : const WelcomeScreen();
+    final auth = AuthService.instance;
+    if (!auth.isSignedIn) return const WelcomeScreen();
+    // Demo doctor account routes to the read-only doctor shell. Everyone else
+    // gets the normal patient experience.
+    if (auth.isDoctor) return const DoctorShell();
+    return const HomeShell();
   }
 }

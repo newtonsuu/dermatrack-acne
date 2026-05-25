@@ -1,20 +1,19 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 
-import '../models/scan.dart';
 import 'auth_service.dart';
 
-/// Profile + scan history store, backed by Supabase.
+/// Profile store, backed by Supabase.
 ///
-/// Two responsibilities:
-///   - Profile picture: lives in the `profile-pictures` storage bucket under
-///     `{user_id}/avatar.jpg`, with the storage path persisted in
-///     `public.profiles.profile_picture_path`. Display uses a signed URL.
-///   - Scan history: still in-memory mock data for now. Will be replaced by
-///     `public.scans` queries when ScanService comes online.
+/// Owns the profile picture (in the `profile-pictures` storage bucket under
+/// `{user_id}/avatar.jpg`, with the storage path persisted in
+/// `public.profiles.profile_picture_path`) plus display-name/username updates.
+///
+/// Scan history used to live here as in-memory mocks; it's now owned by
+/// [ScanService] which queries `public.scans` directly. Listen to
+/// ScanService.instance for scan-list updates, not this class.
 class ProfileService extends ChangeNotifier {
   ProfileService._internal() {
-    _scans = _generateMockScans();
     AuthService.instance.addListener(_onAuthChanged);
     if (AuthService.instance.isSignedIn) {
       // Fire-and-forget — fine because listeners get notified when it lands.
@@ -33,12 +32,29 @@ class ProfileService extends ChangeNotifier {
   /// Pass directly to `Image.network(...)`.
   String? get profilePictureUrl => _profilePictureUrl;
 
+  // ===== Doctor sharing flag =====
+
+  bool _sharedWithDoctor = false;
+
+  /// Whether the user has opted in to sharing their scans with the demo
+  /// doctor account. Drives the toggle on the profile screen. Mirrors
+  /// `public.profiles.shared_with_doctor` (see 0002_doctor_demo.sql).
+  bool get sharedWithDoctor => _sharedWithDoctor;
+
   void _onAuthChanged() {
     if (AuthService.instance.isSignedIn) {
       _loadProfile();
-    } else if (_profilePictureUrl != null) {
-      _profilePictureUrl = null;
-      notifyListeners();
+    } else {
+      var changed = false;
+      if (_profilePictureUrl != null) {
+        _profilePictureUrl = null;
+        changed = true;
+      }
+      if (_sharedWithDoctor) {
+        _sharedWithDoctor = false;
+        changed = true;
+      }
+      if (changed) notifyListeners();
     }
   }
 
@@ -51,10 +67,13 @@ class ProfileService extends ChangeNotifier {
     try {
       final row = await _client
           .from('profiles')
-          .select('profile_picture_path')
+          .select('profile_picture_path, shared_with_doctor')
           .eq('id', userId)
           .maybeSingle();
 
+      var changed = false;
+
+      // Profile picture URL — resolve a fresh signed URL if a path is set.
       final path = (row?['profile_picture_path'] as String?)?.trim();
       if (path != null && path.isNotEmpty) {
         final url = await _client.storage
@@ -62,14 +81,55 @@ class ProfileService extends ChangeNotifier {
             .createSignedUrl(path, _signedUrlTtlSeconds);
         if (_profilePictureUrl != url) {
           _profilePictureUrl = url;
-          notifyListeners();
+          changed = true;
         }
       } else if (_profilePictureUrl != null) {
         _profilePictureUrl = null;
-        notifyListeners();
+        changed = true;
       }
+
+      // Doctor sharing flag. Defaults to false if the column was added by
+      // the 0002 migration but the row predates it (Postgres backfills with
+      // the default, so this is just belt-and-braces).
+      final shared = (row?['shared_with_doctor'] as bool?) ?? false;
+      if (_sharedWithDoctor != shared) {
+        _sharedWithDoctor = shared;
+        changed = true;
+      }
+
+      if (changed) notifyListeners();
     } catch (e) {
       debugPrint('ProfileService: failed to load profile — $e');
+    }
+  }
+
+  /// Toggles whether the demo doctor account can read this user's scans.
+  /// Writes `shared_with_doctor` on the profiles row, optimistically updates
+  /// the local copy so the toggle UI feels instant, and rolls back on
+  /// failure so the switch returns to its previous position.
+  Future<void> setSharedWithDoctor(bool value) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) {
+      throw StateError('You need to be signed in to change sharing settings.');
+    }
+
+    final previous = _sharedWithDoctor;
+    if (previous == value) return;
+
+    _sharedWithDoctor = value;
+    notifyListeners();
+
+    try {
+      await _client
+          .from('profiles')
+          .update({'shared_with_doctor': value})
+          .eq('id', userId);
+    } catch (e) {
+      // Roll back so the switch UI reflects the actual server state.
+      _sharedWithDoctor = previous;
+      notifyListeners();
+      debugPrint('ProfileService.setSharedWithDoctor failed: $e');
+      rethrow;
     }
   }
 
@@ -224,41 +284,6 @@ class ProfileService extends ChangeNotifier {
 
     _profilePictureUrl = null;
     notifyListeners();
-  }
-
-  // ===== Scans (still mocked) =====
-  //
-  // Mock data showing a downward severity trend over two weeks, so the
-  // dashboard and gallery render with realistic-looking content. Replaced
-  // by real Supabase queries once ScanService is wired to zukbx/4.
-  late final List<Scan> _scans;
-
-  /// All scans, most recent first.
-  List<Scan> get scans => List.unmodifiable(_scans);
-
-  /// Most recent [count] scans, newest first.
-  List<Scan> recentScans({int count = 6}) =>
-      _scans.take(count).toList(growable: false);
-
-  List<Scan> _generateMockScans() {
-    final now = DateTime.now();
-    // (daysAgo, cookGrade)
-    const samples = [
-      (1, 3),
-      (3, 4),
-      (5, 4),
-      (8, 5),
-      (11, 6),
-      (14, 6),
-    ];
-    return [
-      for (final s in samples)
-        Scan(
-          id: 'mock_${s.$1}',
-          takenAt: now.subtract(Duration(days: s.$1)),
-          cookGrade: s.$2,
-        ),
-    ];
   }
 
   // ===== Constants =====

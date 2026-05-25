@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../models/scan.dart';
-import '../services/profile_service.dart';
+import '../services/scan_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/user_avatar_action.dart';
+import 'scan_detail_screen.dart';
 
 /// Monthly calendar showing scan history. Each day either renders a small
 /// scan thumbnail (with severity color and Cook grade chip) or an empty
 /// bordered cell. Inspired by Instagram's archive view from the UI doc.
 ///
-/// Data source: ProfileService.scans (currently mocked). When ScanService
-/// comes online and writes to Supabase, the data source swaps but this
-/// widget doesn't change.
+/// Data source: ScanService.scans (live, from `public.scans`).
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
 
@@ -27,12 +26,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
     super.initState();
     final now = DateTime.now();
     _displayedMonth = DateTime(now.year, now.month, 1);
-    ProfileService.instance.addListener(_onScansChanged);
+    ScanService.instance.addListener(_onScansChanged);
   }
 
   @override
   void dispose() {
-    ProfileService.instance.removeListener(_onScansChanged);
+    ScanService.instance.removeListener(_onScansChanged);
     super.dispose();
   }
 
@@ -54,35 +53,78 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
-  /// Returns the most-recent scan keyed by its midnight DateTime so the grid
-  /// can do O(1) lookups. If a day has multiple scans, the one later in the
-  /// list wins — fine for the mock data; we'll likely want a smarter rule
-  /// (e.g., highest severity, or last of the day) when real data lands.
-  Map<DateTime, Scan> _indexScansByDay(List<Scan> scans) {
-    final result = <DateTime, Scan>{};
+  /// Returns ALL scans grouped by day, each list sorted newest-first. The
+  /// previous behavior collapsed multiple scans on the same day into one —
+  /// quietly losing data. We now keep the full list so _DayDetailSheet can
+  /// surface every scan in the drill-down.
+  Map<DateTime, List<Scan>> _indexScansByDay(List<Scan> scans) {
+    final result = <DateTime, List<Scan>>{};
     for (final scan in scans) {
       final key =
           DateTime(scan.takenAt.year, scan.takenAt.month, scan.takenAt.day);
-      result[key] = scan;
+      (result[key] ??= <Scan>[]).add(scan);
+    }
+    for (final list in result.values) {
+      list.sort((a, b) => b.takenAt.compareTo(a.takenAt));
     }
     return result;
   }
 
-  int _countScansInMonth(Map<DateTime, Scan> scansByDay, DateTime month) {
-    return scansByDay.keys
-        .where((d) => d.year == month.year && d.month == month.month)
-        .length;
+  /// Counts the TOTAL number of scans in the displayed month (across all
+  /// days). Previously this counted unique days with scans, which under-
+  /// reports activity once multi-scan days exist.
+  int _countScansInMonth(
+    Map<DateTime, List<Scan>> scansByDay,
+    DateTime month,
+  ) {
+    int total = 0;
+    for (final entry in scansByDay.entries) {
+      if (entry.key.year == month.year && entry.key.month == month.month) {
+        total += entry.value.length;
+      }
+    }
+    return total;
   }
 
-  void _openScanDetail(Scan scan) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Scan detail for ${scan.id} — coming soon.')),
+  void _handleDayTap(DateTime date, List<Scan> dayScans) {
+    if (dayScans.isEmpty) return;
+    if (dayScans.length == 1) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ScanDetailScreen(scan: dayScans.first),
+        ),
+      );
+      return;
+    }
+    _showDaySheet(date, dayScans);
+  }
+
+  Future<void> _showDaySheet(DateTime date, List<Scan> dayScans) async {
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surface(context),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) => _DayDetailSheet(
+        date: date,
+        scans: dayScans,
+        onScanTap: (scan) {
+          Navigator.of(sheetCtx).pop();
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ScanDetailScreen(scan: scan),
+            ),
+          );
+        },
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final scansByDay = _indexScansByDay(ProfileService.instance.scans);
+    final scansByDay = _indexScansByDay(ScanService.instance.scans);
     final today = DateTime.now();
     final todayKey = DateTime(today.year, today.month, today.day);
     final scansThisMonth = _countScansInMonth(scansByDay, _displayedMonth);
@@ -112,9 +154,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   displayedMonth: _displayedMonth,
                   scansByDay: scansByDay,
                   today: todayKey,
-                  onDayTap: (date, scan) {
-                    if (scan != null) _openScanDetail(scan);
-                  },
+                  onDayTap: _handleDayTap,
                 ),
               ),
               const SizedBox(height: 12),
@@ -216,9 +256,9 @@ class _CalendarGrid extends StatelessWidget {
   });
 
   final DateTime displayedMonth;
-  final Map<DateTime, Scan> scansByDay;
+  final Map<DateTime, List<Scan>> scansByDay;
   final DateTime today;
-  final void Function(DateTime date, Scan? scan) onDayTap;
+  final void Function(DateTime date, List<Scan> dayScans) onDayTap;
 
   @override
   Widget build(BuildContext context) {
@@ -239,16 +279,36 @@ class _CalendarGrid extends StatelessWidget {
         final date = gridStart.add(Duration(days: index));
         final dateKey = DateTime(date.year, date.month, date.day);
         final inMonth = date.month == displayedMonth.month;
+        final dayScans = scansByDay[dateKey] ?? const <Scan>[];
+        // The cell displays one "representative" scan per day; when extras
+        // exist, a "+N" badge tells the user there's more behind the tap.
+        final rep = dayScans.isEmpty ? null : _pickRepresentative(dayScans);
         return _CalendarCell(
           date: date,
-          scan: scansByDay[dateKey],
+          representative: rep,
+          extrasCount: dayScans.isEmpty ? 0 : dayScans.length - 1,
           inMonth: inMonth,
           isToday: dateKey == today,
-          onTap: () => onDayTap(date, scansByDay[dateKey]),
+          onTap: () => onDayTap(date, dayScans),
         );
       },
     );
   }
+}
+
+/// Picks the scan to "represent" a day on the calendar grid.
+///
+/// Policy: worst severity wins (higher cookGrade) so the calendar honestly
+/// surfaces bad days; tiebreak by most-recent takenAt so the latest
+/// scan-of-the-day wins among equals. Trend visibility matters more than
+/// chronological accuracy here — the bottom sheet shows everyone.
+Scan _pickRepresentative(List<Scan> dayScans) {
+  return dayScans.reduce((a, b) {
+    if (a.cookGrade != b.cookGrade) {
+      return a.cookGrade > b.cookGrade ? a : b;
+    }
+    return a.takenAt.isAfter(b.takenAt) ? a : b;
+  });
 }
 
 // ===== Single cell =====
@@ -256,21 +316,30 @@ class _CalendarGrid extends StatelessWidget {
 class _CalendarCell extends StatelessWidget {
   const _CalendarCell({
     required this.date,
-    required this.scan,
+    required this.representative,
+    required this.extrasCount,
     required this.inMonth,
     required this.isToday,
     required this.onTap,
   });
 
   final DateTime date;
-  final Scan? scan;
+
+  /// The scan visually represented in this cell (worst-grade of the day).
+  /// Null when the day has no scans.
+  final Scan? representative;
+
+  /// Number of scans on this day BEYOND the representative. When > 0, a
+  /// small "+N" badge appears in the cell's top-right corner.
+  final int extrasCount;
+
   final bool inMonth;
   final bool isToday;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final hasScan = scan != null;
+    final hasScan = representative != null;
     final opacityForOutOfMonth = inMonth ? 1.0 : 0.35;
 
     final borderColor = isToday
@@ -290,7 +359,7 @@ class _CalendarCell extends StatelessWidget {
               // empty surface with border.
               Positioned.fill(
                 child: hasScan
-                    ? _ScanCellBackground(scan: scan!)
+                    ? _ScanCellBackground(scan: representative!)
                     : Container(
                         decoration: BoxDecoration(
                           color: AppTheme.surface(context),
@@ -341,6 +410,30 @@ class _CalendarCell extends StatelessWidget {
                   ),
                 ),
               ),
+              // Multi-scan badge (top-right) — only when extras exist.
+              if (hasScan && extrasCount > 0)
+                Positioned(
+                  top: 4,
+                  right: 6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(7),
+                    ),
+                    child: Text(
+                      '+$extrasCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
               // Grade chip (bottom-right).
               if (hasScan)
                 Positioned(
@@ -354,11 +447,11 @@ class _CalendarCell extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      'G${scan!.cookGrade}',
+                      'G${representative!.cookGrade}',
                       style: TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.w700,
-                        color: scan!.severityColor,
+                        color: representative!.severityColor,
                       ),
                     ),
                   ),
@@ -398,6 +491,196 @@ class _ScanCellBackground extends StatelessWidget {
         color: Colors.white,
         size: 24,
       ),
+    );
+  }
+}
+
+// ===== Day-detail bottom sheet =====
+
+/// Modal sheet shown when a calendar cell with 2+ scans is tapped. Lists
+/// every scan from that day in newest-first order; each row taps through
+/// to the full ScanDetailScreen.
+class _DayDetailSheet extends StatelessWidget {
+  const _DayDetailSheet({
+    required this.date,
+    required this.scans,
+    required this.onScanTap,
+  });
+
+  final DateTime date;
+  final List<Scan> scans;
+  final void Function(Scan scan) onScanTap;
+
+  static const _monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+
+  String _formattedDate() =>
+      '${_monthNames[date.month - 1]} ${date.day}, ${date.year}';
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(0, 8, 0, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Drag handle.
+            Center(
+              child: Container(
+                height: 4,
+                width: 40,
+                decoration: BoxDecoration(
+                  color: AppTheme.border(context),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Text(
+                      _formattedDate(),
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  Text(
+                    '${scans.length} scan${scans.length == 1 ? '' : 's'}',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary(context),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            // shrinkWrap keeps the sheet tight to its content; Flexible
+            // caps the height when there are many scans so the sheet
+            // doesn't push past the top of the screen.
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                itemCount: scans.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 4),
+                itemBuilder: (context, index) {
+                  final scan = scans[index];
+                  return _DaySheetRow(
+                    scan: scan,
+                    onTap: () => onScanTap(scan),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DaySheetRow extends StatelessWidget {
+  const _DaySheetRow({required this.scan, required this.onTap});
+  final Scan scan;
+  final VoidCallback onTap;
+
+  String _formatTime(DateTime d) {
+    final hour12 = d.hour == 0 ? 12 : (d.hour > 12 ? d.hour - 12 : d.hour);
+    final ampm = d.hour < 12 ? 'AM' : 'PM';
+    final minute = d.minute.toString().padLeft(2, '0');
+    return '$hour12:$minute $ampm';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = scan.imageUrl;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              // Severity-colored "frame" around the image — uses padding +
+              // a child ClipRRect rather than BoxDecoration.border so the
+              // image's rounded corners aren't clipped against a hard edge.
+              Container(
+                width: 56,
+                height: 56,
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: scan.severityColor,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: imageUrl != null
+                      ? Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              _DaySheetThumbPlaceholder(
+                            color: scan.severityColor,
+                          ),
+                        )
+                      : _DaySheetThumbPlaceholder(color: scan.severityColor),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _formatTime(scan.takenAt),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${scan.severityLabel} • Cook ${scan.cookGrade}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppTheme.textSecondary(context),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: AppTheme.textSecondary(context),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DaySheetThumbPlaceholder extends StatelessWidget {
+  const _DaySheetThumbPlaceholder({required this.color});
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: color.withValues(alpha: 0.35),
+      alignment: Alignment.center,
+      child: const Icon(Icons.face_outlined, color: Colors.white, size: 28),
     );
   }
 }
