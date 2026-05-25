@@ -4,10 +4,13 @@ import 'package:image_picker/image_picker.dart';
 import '../models/scan.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
+import '../services/scan_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/scan_thumbnail.dart';
+import '../widgets/skin_summary_card.dart';
 import '../widgets/user_avatar_action.dart';
 import 'gallery_screen.dart';
+import 'scan_detail_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -22,12 +25,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    // ProfileService drives the profile picture / display name; ScanService
+    // drives the recent-scans row. Listen to both so any update rebuilds.
     ProfileService.instance.addListener(_onProfileChanged);
+    ScanService.instance.addListener(_onProfileChanged);
   }
 
   @override
   void dispose() {
     ProfileService.instance.removeListener(_onProfileChanged);
+    ScanService.instance.removeListener(_onProfileChanged);
     super.dispose();
   }
 
@@ -125,7 +132,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final user = AuthService.instance.currentUser;
     final pictureUrl = ProfileService.instance.profilePictureUrl;
-    final recentScans = ProfileService.instance.recentScans();
+    final allScans = ScanService.instance.scans;
+    final recentScans = ScanService.instance.recentScans();
 
     return Scaffold(
       backgroundColor: AppTheme.background(context),
@@ -141,6 +149,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
             email: user?.email ?? '',
             pictureUrl: pictureUrl,
             onEditPicture: _openPictureSheet,
+          ),
+          // Skin summary card sits below the header — first-time users
+          // (no scans yet) don't see it; after the first scan it appears
+          // and starts taking shape as more days come in.
+          if (allScans.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            SkinSummaryCard(scans: allScans),
+          ],
+          const SizedBox(height: 16),
+          _ShareWithDoctorCard(
+            value: ProfileService.instance.sharedWithDoctor,
+            onChanged: (next) async {
+              try {
+                await ProfileService.instance.setSharedWithDoctor(next);
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(next
+                        ? 'Sharing turned on — your dermatologist can now see your scans.'
+                        : 'Sharing turned off — your dermatologist no longer has access.'),
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Could not update sharing: $e')),
+                );
+              }
+            },
           ),
           const SizedBox(height: 24),
           _SectionHeader(
@@ -345,6 +383,81 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
+/// Opt-in card that controls whether the demo doctor account can read this
+/// user's scans. Wired to ProfileService.setSharedWithDoctor — the parent
+/// handles success/failure snackbars.
+///
+/// DEMO ONLY copy. When we replace the hardcoded-doctor model with proper
+/// patient↔doctor linking, this card becomes the "Connect with my
+/// dermatologist" flow (search → invite → consent), and the description
+/// here gets rewritten to match.
+class _ShareWithDoctorCard extends StatelessWidget {
+  const _ShareWithDoctorCard({
+    required this.value,
+    required this.onChanged,
+  });
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final iconColor = value ? AppTheme.primary : AppTheme.textSecondary(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: (value ? AppTheme.primary : AppTheme.textSecondary(context))
+                    .withValues(alpha: 0.10),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.medical_services_outlined,
+                  color: iconColor, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Share with my dermatologist',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary(context),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value
+                        ? 'Your dermatologist can view your scan history, severity trend, and analysis details. Notes stay private.'
+                        : 'Off — only you can see your scans. Turn this on to let your dermatologist view your progress between visits.',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary(context),
+                      fontSize: 12.5,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Switch(
+              value: value,
+              onChanged: onChanged,
+              activeColor: AppTheme.primary,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _RecentScansRow extends StatelessWidget {
   const _RecentScansRow({required this.scans});
   final List<Scan> scans;
@@ -388,11 +501,9 @@ class _RecentScansRow extends StatelessWidget {
         itemBuilder: (context, index) {
           return ScanThumbnail(
             scan: scans[index],
-            onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Scan detail for ${scans[index].id} — coming soon.',
-                ),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ScanDetailScreen(scan: scans[index]),
               ),
             ),
           );

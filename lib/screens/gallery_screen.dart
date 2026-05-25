@@ -1,23 +1,52 @@
 import 'package:flutter/material.dart';
 
-import '../services/profile_service.dart';
+import '../services/scan_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/scan_thumbnail.dart';
+import 'scan_detail_screen.dart';
 
 /// Full-screen grid of every scan the user has taken, reached via the
 /// "View all" link on the profile preview row.
-class GalleryScreen extends StatelessWidget {
+///
+/// Listens to [ScanService] so the grid refreshes when a new scan is
+/// submitted from the camera screen (without the user having to back out
+/// and re-enter this screen).
+class GalleryScreen extends StatefulWidget {
   const GalleryScreen({super.key});
 
   @override
+  State<GalleryScreen> createState() => _GalleryScreenState();
+}
+
+class _GalleryScreenState extends State<GalleryScreen> {
+  @override
+  void initState() {
+    super.initState();
+    ScanService.instance.addListener(_onScansChanged);
+  }
+
+  @override
+  void dispose() {
+    ScanService.instance.removeListener(_onScansChanged);
+    super.dispose();
+  }
+
+  void _onScansChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final scans = ProfileService.instance.scans;
+    final scans = ScanService.instance.scans;
+    final isLoading = ScanService.instance.isLoading;
 
     return Scaffold(
       backgroundColor: AppTheme.background(context),
       appBar: AppBar(title: const Text('All scans')),
       body: scans.isEmpty
-          ? const _EmptyState()
+          ? (isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : const _EmptyState())
           : Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
               child: GridView.builder(
@@ -25,18 +54,19 @@ class GalleryScreen extends StatelessWidget {
                   crossAxisCount: 3,
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 16,
-                  childAspectRatio: 0.82,
+                  // 0.75 gives ~10px headroom for the date label below the
+                  // square image; earlier 0.82 was 2-3px too tight on phones
+                  // where the system font scales slightly larger.
+                  childAspectRatio: 0.75,
                 ),
                 itemCount: scans.length,
                 itemBuilder: (context, index) {
                   final scan = scans[index];
                   return ScanThumbnail(
                     scan: scan,
-                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Scan detail for ${scan.id} — coming soon.',
-                        ),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ScanDetailScreen(scan: scan),
                       ),
                     ),
                   );

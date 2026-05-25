@@ -1,6 +1,17 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 
+/// Email address that triggers doctor-mode routing in the app.
+///
+/// DEMO ONLY. The Supabase migration `0002_doctor_demo.sql` references this
+/// same string from its RLS policy via the `is_demo_doctor()` function. If
+/// you change it here, update that migration too (and re-apply it).
+///
+/// Post-thesis: replace with a proper `role` column on profiles + a
+/// doctor↔patient linking table so multiple doctors are supported and
+/// access is auditable.
+const String kDoctorDemoEmail = 'doctor@dermatrack.demo';
+
 /// Authentication service backed by Supabase Auth.
 ///
 /// Preserves the exact public surface of the previous in-memory stub so the
@@ -33,6 +44,15 @@ class AuthService extends ChangeNotifier {
   AppUser? _currentUser;
   AppUser? get currentUser => _currentUser;
   bool get isSignedIn => _currentUser != null;
+
+  /// True when the signed-in user is the demo doctor account. The auth gate
+  /// in main.dart uses this to route to DoctorShell instead of HomeShell.
+  /// Comparison is case-insensitive because Supabase stores emails lower-
+  /// cased but typed input can vary.
+  bool get isDoctor {
+    final email = _currentUser?.email.toLowerCase().trim();
+    return email != null && email == kDoctorDemoEmail;
+  }
 
   void _initialize() {
     // Supabase.instance.client throws if initialize() wasn't called. Guard

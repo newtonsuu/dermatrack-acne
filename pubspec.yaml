@@ -15,6 +15,13 @@ dependencies:
   path_provider: ^2.1.4
   shared_preferences: ^2.3.2
   supabase_flutter: ^2.5.0
+  uuid: ^4.4.0
+  fl_chart: ^0.68.0
+  # On-device face detection — used by FaceDetectionService for the camera
+  # screen's preflight gate (and, in phase B, per-region partitioning of
+  # detected lesions). Android + iOS only; the camera flow falls back to
+  # skipping preflight on Flutter Web.
+  google_mlkit_face_detection: ^0.10.0
 
 dev_dependencies:
   flutter_lints: ^4.0.0
@@ -23,3 +30,10 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    # Per-class educational reference images shown on the scan-detail
+    # screen when a user taps a detected lesion class. Sourced from
+    # DermNet NZ (CC BY-NC-ND) — see app/lib/data/acne_references.dart
+    # for the data + attribution per image. Missing files degrade
+    # gracefully via Image.asset's errorBuilder.
+    - assets/references/
