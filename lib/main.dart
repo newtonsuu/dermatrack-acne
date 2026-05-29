@@ -5,6 +5,7 @@ import 'screens/doctor/doctor_shell.dart';
 import 'screens/home_shell.dart';
 import 'screens/welcome_screen.dart';
 import 'services/auth_service.dart';
+import 'services/scan_reminder_service.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
 
@@ -28,6 +29,17 @@ Future<void> main() async {
   // Load the persisted theme choice before runApp so we don't flash the
   // default light theme on launch when the user previously picked dark.
   await ThemeController.instance.init();
+
+  // Boot the scan-reminder service. Initializes the local-notifications
+  // plugin and re-arms any previously-scheduled reminder (defensive —
+  // covers the rare case where Android's alarm manager dropped it).
+  // Best-effort: failure here shouldn't prevent the app from launching,
+  // it just means the reminder won't fire until the user re-toggles it.
+  try {
+    await ScanReminderService.instance.initialize();
+  } catch (e) {
+    debugPrint('ScanReminderService.initialize failed: $e');
+  }
 
   // Initialize Supabase. If the keys weren't passed in, log loudly and
   // continue — the AuthService will surface a clear error if anyone tries

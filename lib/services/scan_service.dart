@@ -151,11 +151,33 @@ class ScanService extends ChangeNotifier {
   /// `camera_screen._useThisPhoto` — should wrap in try/catch and surface
   /// via a SnackBar.
   ///
+  /// Optional parameters:
+  ///   [region]    — anatomical zone the scan represents. Defaults to
+  ///                 [ScanRegion.fullFace] so legacy single-scan callers
+  ///                 keep working without changes. Guided-session callers
+  ///                 pass the matching region for each of the five steps.
+  ///   [sessionId] — UUID linking this scan to the other four from a
+  ///                 guided session. The caller generates it once at
+  ///                 session start and reuses it for all five submissions.
+  ///                 Pass null for standalone scans.
+  ///   [faceBbox]  — face bounding box from the ML Kit preflight, in the
+  ///                 same pixel space as the uploaded image. The Edge
+  ///                 Function uses this to filter Roboflow detections
+  ///                 whose center falls outside the face — solves the
+  ///                 "comedone detected on the background" problem the
+  ///                 dermatologist flagged on 2026-05-25.
+  ///                 Shape: {'x', 'y', 'w', 'h', 'image_w', 'image_h'}.
+  ///
   /// Side effects on success:
   ///   - A new row in `public.scans`.
   ///   - A new object at `scan-images/{user_id}/{scan_id}.jpg`.
   ///   - The new Scan prepended to [scans] and listeners notified.
-  Future<Scan> submitScan(Uint8List bytes) async {
+  Future<Scan> submitScan(
+    Uint8List bytes, {
+    ScanRegion region = ScanRegion.fullFace,
+    String? sessionId,
+    Map<String, dynamic>? faceBbox,
+  }) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) {
       throw StateError('You need to be signed in to submit a scan.');
@@ -182,11 +204,21 @@ class ScanService extends ChangeNotifier {
       imageUploaded = true;
 
       // 2. Run analysis. supabase_flutter automatically attaches the JWT.
+      //    region + session_id + face_bbox are forwarded to the Edge
+      //    Function so it can (a) persist them on the scan row and
+      //    (b) filter out Roboflow detections whose center falls outside
+      //    the face bbox — solving the background-false-positive issue.
+      //    All three are optional from the server's perspective: omitting
+      //    region defaults to full_face on insert, omitting session_id
+      //    keeps the row standalone, omitting face_bbox skips the filter.
       final response = await _client.functions.invoke(
         'analyze-scan',
         body: {
           'scan_id': scanId,
           'image_path': imagePath,
+          'region': region.wireName,
+          if (sessionId != null) 'session_id': sessionId,
+          if (faceBbox != null) 'face_bbox': faceBbox,
         },
       );
 

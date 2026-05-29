@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 
+import '../models/patient_history.dart';
 import '../models/scan.dart';
 import 'auth_service.dart';
 
@@ -61,6 +62,23 @@ class DoctorService extends ChangeNotifier {
   bool isLoadingScansFor(String patientId) => _scansLoading.contains(patientId);
   Object? scansErrorFor(String patientId) => _scansError[patientId];
 
+  // ===== Per-patient medical history =====
+  // Sentinel: a key present in [_historyByPatient] with a null value means
+  // "we fetched and there was no row" (patient hasn't filled their history
+  // yet). Absent key means "we haven't fetched yet". This lets the UI
+  // distinguish loading from empty.
+  final Map<String, PatientHistory?> _historyByPatient = {};
+  final Map<String, Object?> _historyError = {};
+  final Set<String> _historyLoading = {};
+
+  bool hasHistoryFor(String patientId) =>
+      _historyByPatient.containsKey(patientId);
+  PatientHistory? historyFor(String patientId) =>
+      _historyByPatient[patientId];
+  bool isLoadingHistoryFor(String patientId) =>
+      _historyLoading.contains(patientId);
+  Object? historyErrorFor(String patientId) => _historyError[patientId];
+
   // ===== Auth wiring =====
 
   void _onAuthChanged() {
@@ -70,14 +88,19 @@ class DoctorService extends ChangeNotifier {
     } else {
       // Doctor signed out (or a non-doctor signed in via the same shared
       // singleton). Drop all cached data — we don't want patient scans
-      // lingering in memory after the doctor session ends.
+      // (or their histories) lingering in memory after the doctor session
+      // ends.
       final hadAny = _patients.isNotEmpty ||
           _scansByPatient.isNotEmpty ||
+          _historyByPatient.isNotEmpty ||
           _patientsError != null;
       _patients = const [];
       _scansByPatient.clear();
       _scansError.clear();
       _scansLoading.clear();
+      _historyByPatient.clear();
+      _historyError.clear();
+      _historyLoading.clear();
       _patientsError = null;
       if (hadAny) notifyListeners();
     }
@@ -225,6 +248,49 @@ class DoctorService extends ChangeNotifier {
       _scansError[patientId] = e;
     } finally {
       _scansLoading.remove(patientId);
+      notifyListeners();
+    }
+  }
+
+  // ===== Patient medical history =====
+
+  /// Fetches [patientId]'s medical history row from public.patient_histories.
+  /// RLS (0005_patient_histories.sql) restricts the doctor to consenting
+  /// patients only — if the patient has toggled sharing off, this returns
+  /// no row.
+  ///
+  /// On success, the result is cached in [_historyByPatient] so re-opening
+  /// the patient is instant. Pass `force: true` to bypass the cache.
+  Future<void> loadPatientHistory(
+    String patientId, {
+    bool force = false,
+  }) async {
+    if (!AuthService.instance.isDoctor) return;
+    if (_historyLoading.contains(patientId)) return;
+    if (!force && _historyByPatient.containsKey(patientId)) return;
+
+    _historyLoading.add(patientId);
+    notifyListeners();
+
+    try {
+      final row = await _client
+          .from('patient_histories')
+          .select()
+          .eq('user_id', patientId)
+          .maybeSingle();
+
+      if (row == null) {
+        _historyByPatient[patientId] = null; // sentinel: fetched, no row
+      } else {
+        _historyByPatient[patientId] =
+            PatientHistory.fromRow(row.cast<String, dynamic>());
+      }
+      _historyError[patientId] = null;
+    } catch (e) {
+      debugPrint('DoctorService.loadPatientHistory($patientId) failed: $e');
+      _historyError[patientId] = e;
+    } finally {
+      _historyLoading.remove(patientId);
       notifyListeners();
     }
   }

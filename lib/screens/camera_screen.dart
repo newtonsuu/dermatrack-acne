@@ -125,8 +125,30 @@ class _CameraScreenState extends State<CameraScreen> {
       }
 
       // Preflight passed (or was skipped on web) — proceed with the
-      // existing upload + analysis flow.
-      final scan = await ScanService.instance.submitScan(bytes);
+      // existing upload + analysis flow. When the preflight ran (mobile),
+      // we already have the face bounding box; forward it to the Edge
+      // Function so it can filter out Roboflow detections whose center
+      // falls outside the face. On web the preflight skipped and we send
+      // no bbox, in which case the Edge Function applies no filter.
+      Map<String, dynamic>? faceBbox;
+      final face = preflight.face;
+      final imgW = preflight.imageWidth;
+      final imgH = preflight.imageHeight;
+      if (face != null && imgW != null && imgH != null) {
+        faceBbox = {
+          'x': face.boundingBox.left,
+          'y': face.boundingBox.top,
+          'w': face.boundingBox.width,
+          'h': face.boundingBox.height,
+          'image_w': imgW,
+          'image_h': imgH,
+        };
+      }
+
+      final scan = await ScanService.instance.submitScan(
+        bytes,
+        faceBbox: faceBbox,
+      );
       if (!mounted) return;
       setState(() {
         _isSubmitting = false;

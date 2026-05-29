@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../models/patient_history.dart';
 import '../../models/scan.dart';
 import '../../services/doctor_service.dart';
 import '../../theme/app_theme.dart';
@@ -31,9 +32,10 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen> {
   void initState() {
     super.initState();
     DoctorService.instance.addListener(_onChanged);
-    // Kick off the scan load. If the doctor opens this patient again later,
-    // the service's cache makes that re-entry instant.
+    // Kick off the scan + medical-history loads. The service caches both,
+    // so re-opening the patient is instant on subsequent visits.
     DoctorService.instance.loadPatientScans(widget.patient.id);
+    DoctorService.instance.loadPatientHistory(widget.patient.id);
   }
 
   @override
@@ -46,8 +48,12 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen> {
     if (mounted) setState(() {});
   }
 
-  Future<void> _refresh() =>
-      DoctorService.instance.loadPatientScans(widget.patient.id);
+  Future<void> _refresh() async {
+    await Future.wait([
+      DoctorService.instance.loadPatientScans(widget.patient.id),
+      DoctorService.instance.loadPatientHistory(widget.patient.id, force: true),
+    ]);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -100,10 +106,22 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen> {
       );
     }
 
+    final service = DoctorService.instance;
+    final patientId = widget.patient.id;
+    final history = service.historyFor(patientId);
+    final hasHistory = service.hasHistoryFor(patientId);
+    final historyLoading = service.isLoadingHistoryFor(patientId);
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       children: [
         _PatientHeader(patient: widget.patient, scanCount: scans.length),
+        const SizedBox(height: 16),
+        _MedicalHistoryCard(
+          history: history,
+          hasFetched: hasHistory,
+          isLoading: historyLoading,
+        ),
         const SizedBox(height: 16),
         SkinSummaryCard(scans: scans),
         const SizedBox(height: 20),
@@ -163,6 +181,262 @@ class _ReadOnlyRibbon extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Read-only summary of the patient's medical-history intake. Collapsed
+/// by default to keep the patient-detail screen scannable; tap to expand
+/// the full sectioned view.
+///
+/// Renders three states:
+///   - isLoading + !hasFetched → spinner placeholder.
+///   - hasFetched + history == null → "Patient hasn't filled this in yet."
+///   - hasFetched + history != null → expandable sectioned summary.
+class _MedicalHistoryCard extends StatefulWidget {
+  const _MedicalHistoryCard({
+    required this.history,
+    required this.hasFetched,
+    required this.isLoading,
+  });
+
+  final PatientHistory? history;
+  final bool hasFetched;
+  final bool isLoading;
+
+  @override
+  State<_MedicalHistoryCard> createState() => _MedicalHistoryCardState();
+}
+
+class _MedicalHistoryCardState extends State<_MedicalHistoryCard> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.assignment_outlined,
+                    color: AppTheme.primary, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  'Medical history',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary(context),
+                  ),
+                ),
+                const Spacer(),
+                if (widget.history != null)
+                  TextButton(
+                    onPressed: () =>
+                        setState(() => _expanded = !_expanded),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(0, 30),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: Text(_expanded ? 'Collapse' : 'Expand'),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            _body(context),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _body(BuildContext context) {
+    if (!widget.hasFetched && widget.isLoading) {
+      return Row(
+        children: [
+          const SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            'Loading history…',
+            style: TextStyle(
+              fontSize: 13,
+              color: AppTheme.textSecondary(context),
+            ),
+          ),
+        ],
+      );
+    }
+    final history = widget.history;
+    if (history == null) {
+      return Text(
+        "Patient hasn't filled in their medical history yet.",
+        style: TextStyle(
+          fontSize: 13,
+          color: AppTheme.textSecondary(context),
+          fontStyle: FontStyle.italic,
+        ),
+      );
+    }
+    if (!_expanded) {
+      // Compact preview: one-line summary of the most salient bits.
+      return Text(
+        _summaryLine(history),
+        style: TextStyle(
+          fontSize: 13,
+          height: 1.4,
+          color: AppTheme.textPrimary(context),
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _kvSection(context, 'About', _aboutLines(history)),
+        _kvSection(context, 'Past medical history',
+            _pastMedicalLines(history)),
+        _kvSection(context, 'Family history', _familyLines(history)),
+        _kvSection(
+            context, 'Personal and social history', _socialLines(history)),
+        if ((history.currentMedications ?? '').trim().isNotEmpty)
+          _kvSection(context, 'Current medications',
+              [history.currentMedications!.trim()]),
+      ],
+    );
+  }
+
+  Widget _kvSection(BuildContext context, String title, List<String> lines) {
+    if (lines.isEmpty) {
+      lines = const ['—'];
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title.toUpperCase(),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
+              color: AppTheme.textSecondary(context),
+            ),
+          ),
+          const SizedBox(height: 4),
+          for (final line in lines)
+            Text(
+              line,
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.4,
+                color: AppTheme.textPrimary(context),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _summaryLine(PatientHistory h) {
+    final parts = <String>[];
+    if ((h.fullName ?? '').trim().isNotEmpty) {
+      parts.add(h.fullName!.trim());
+    }
+    if (h.birthday != null) {
+      parts.add('born ${h.birthday!.year}');
+    }
+    if (h.pastMedicalConditions.isNotEmpty) {
+      parts.add('${h.pastMedicalConditions.length} past condition'
+          '${h.pastMedicalConditions.length == 1 ? '' : 's'}');
+    }
+    if (h.familyHistoryConditions.isNotEmpty) {
+      parts.add('${h.familyHistoryConditions.length} family condition'
+          '${h.familyHistoryConditions.length == 1 ? '' : 's'}');
+    }
+    if (h.smokerPackYears != null) parts.add('smoker');
+    if (h.isAlcoholDrinker) parts.add('alcohol');
+    if ((h.currentMedications ?? '').trim().isNotEmpty) {
+      parts.add('on medications');
+    }
+    if (parts.isEmpty) return 'No fields filled.';
+    return parts.join(' · ');
+  }
+
+  List<String> _aboutLines(PatientHistory h) {
+    final lines = <String>[];
+    if ((h.fullName ?? '').trim().isNotEmpty) lines.add(h.fullName!.trim());
+    final demo = <String>[];
+    if (h.birthday != null) {
+      demo.add('born ${h.birthday!.year}-${_2(h.birthday!.month)}-${_2(h.birthday!.day)}');
+    }
+    if (h.sex != null) {
+      demo.add(kSexOptions[h.sex] ?? h.sex!);
+    }
+    if (demo.isNotEmpty) lines.add(demo.join(' · '));
+    if ((h.occupation ?? '').trim().isNotEmpty) {
+      lines.add('Occupation: ${h.occupation!.trim()}');
+    }
+    if ((h.address ?? '').trim().isNotEmpty) {
+      lines.add('Address: ${h.address!.trim()}');
+    }
+    if ((h.contactNo ?? '').trim().isNotEmpty) {
+      lines.add('Contact: ${h.contactNo!.trim()}');
+    }
+    return lines;
+  }
+
+  List<String> _pastMedicalLines(PatientHistory h) {
+    final lines = <String>[];
+    if (h.pastMedicalConditions.isNotEmpty) {
+      lines.add(h.pastMedicalConditions
+          .map((k) => kPastMedicalConditions[k] ?? k)
+          .join(', '));
+    }
+    if ((h.previousSurgeryDetail ?? '').trim().isNotEmpty) {
+      lines.add('Previous surgery: ${h.previousSurgeryDetail!.trim()}');
+    }
+    if ((h.allergiesDetail ?? '').trim().isNotEmpty) {
+      lines.add('Allergies: ${h.allergiesDetail!.trim()}');
+    }
+    if ((h.pastMedicalOthers ?? '').trim().isNotEmpty) {
+      lines.add('Others: ${h.pastMedicalOthers!.trim()}');
+    }
+    return lines;
+  }
+
+  List<String> _familyLines(PatientHistory h) {
+    final lines = <String>[];
+    if (h.familyHistoryConditions.isNotEmpty) {
+      lines.add(h.familyHistoryConditions
+          .map((k) => kFamilyHistoryConditions[k] ?? k)
+          .join(', '));
+    }
+    if ((h.familyHistoryOthers ?? '').trim().isNotEmpty) {
+      lines.add('Others: ${h.familyHistoryOthers!.trim()}');
+    }
+    return lines;
+  }
+
+  List<String> _socialLines(PatientHistory h) {
+    final lines = <String>[];
+    if (h.smokerPackYears != null) {
+      lines.add('Smoker · ${h.smokerPackYears!.toStringAsFixed(0)} pack-years');
+    }
+    if (h.usesProhibitedDrugs) lines.add('Uses prohibited drugs');
+    if (h.isAlcoholDrinker) lines.add('Alcoholic beverage drinker');
+    if ((h.socialOthers ?? '').trim().isNotEmpty) {
+      lines.add('Others: ${h.socialOthers!.trim()}');
+    }
+    return lines;
+  }
+
+  static String _2(int n) => n.toString().padLeft(2, '0');
 }
 
 class _PatientHeader extends StatelessWidget {
