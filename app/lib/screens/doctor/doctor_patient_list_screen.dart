@@ -4,16 +4,32 @@ import '../../services/doctor_service.dart';
 import '../../theme/app_theme.dart';
 import 'doctor_patient_detail_screen.dart';
 
+/// How the patient list is ordered. Recent (most recent scan first) is the
+/// default the dermatologist opens to; severity surfaces the patients doing
+/// worst; name is the predictable A–Z fallback.
+enum _PatientSort {
+  recent('Recent'),
+  severity('Severity'),
+  name('Name');
+
+  const _PatientSort(this.label);
+  final String label;
+}
+
 /// List of patients who have toggled "Share with my dermatologist" on.
 ///
 /// Each row shows the patient's display name, their last scan timestamp,
 /// and a severity chip for their most recent grade. Tapping a row opens the
 /// patient detail view.
 ///
+/// A search field + sort control + "Needs review" filter sit above the list
+/// so the dermatologist can find a patient by name, surface the most severe
+/// cases first, or focus only on patients whose latest scan hasn't been
+/// annotated yet. All three operate client-side over the already-loaded
+/// patient list — no extra round-trips.
+///
 /// Pull-to-refresh re-runs DoctorService.loadPatients so the list reflects
-/// recent opt-ins / opt-outs without restarting the app — useful during
-/// the demo if the dermatologist asks "what happens when the patient
-/// turns sharing off?"
+/// recent opt-ins / opt-outs without restarting the app.
 class DoctorPatientListScreen extends StatefulWidget {
   const DoctorPatientListScreen({super.key});
 
@@ -23,6 +39,12 @@ class DoctorPatientListScreen extends StatefulWidget {
 }
 
 class _DoctorPatientListScreenState extends State<DoctorPatientListScreen> {
+  final TextEditingController _searchController = TextEditingController();
+
+  String _query = '';
+  _PatientSort _sort = _PatientSort.recent;
+  bool _needsReviewOnly = false;
+
   @override
   void initState() {
     super.initState();
@@ -32,6 +54,7 @@ class _DoctorPatientListScreenState extends State<DoctorPatientListScreen> {
   @override
   void dispose() {
     DoctorService.instance.removeListener(_onChanged);
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -41,79 +64,239 @@ class _DoctorPatientListScreenState extends State<DoctorPatientListScreen> {
 
   Future<void> _refresh() => DoctorService.instance.loadPatients();
 
+  /// Applies the active search query, "needs review" filter, and sort to the
+  /// service's patient list. Pure — derives the visible list from inputs.
+  List<DoctorPatient> _visible(List<DoctorPatient> all) {
+    final q = _query.trim().toLowerCase();
+    final filtered = all.where((p) {
+      if (_needsReviewOnly) {
+        final latest = p.latestScan;
+        // "Needs review" = the patient has a most-recent scan that the
+        // doctor hasn't annotated yet. Patients with no scans aren't
+        // actionable, so they drop out of this filter.
+        if (latest == null || latest.hasDoctorNote) return false;
+      }
+      if (q.isEmpty) return true;
+      return p.displayLabel.toLowerCase().contains(q) ||
+          p.username.toLowerCase().contains(q);
+    }).toList();
+
+    int byRecent(DoctorPatient a, DoctorPatient b) {
+      final aDate = a.latestScan?.takenAt;
+      final bDate = b.latestScan?.takenAt;
+      if (aDate != null && bDate != null) return bDate.compareTo(aDate);
+      if (aDate != null) return -1;
+      if (bDate != null) return 1;
+      return a.displayLabel
+          .toLowerCase()
+          .compareTo(b.displayLabel.toLowerCase());
+    }
+
+    switch (_sort) {
+      case _PatientSort.recent:
+        filtered.sort(byRecent);
+        break;
+      case _PatientSort.severity:
+        // Worst grade first. Patients with no scan have no grade, so they
+        // sink to the bottom; ties fall back to most-recent then name.
+        filtered.sort((a, b) {
+          final aGrade = a.latestScan?.cookGrade;
+          final bGrade = b.latestScan?.cookGrade;
+          if (aGrade != null && bGrade != null && aGrade != bGrade) {
+            return bGrade.compareTo(aGrade);
+          }
+          if (aGrade != null && bGrade == null) return -1;
+          if (aGrade == null && bGrade != null) return 1;
+          return byRecent(a, b);
+        });
+        break;
+      case _PatientSort.name:
+        filtered.sort((a, b) => a.displayLabel
+            .toLowerCase()
+            .compareTo(b.displayLabel.toLowerCase()));
+        break;
+    }
+    return filtered;
+  }
+
   @override
   Widget build(BuildContext context) {
     final service = DoctorService.instance;
-    final patients = service.patients;
+    final all = service.patients;
     final isLoading = service.isLoadingPatients;
     final error = service.patientsError;
 
     // First-time load with no cached data → centered spinner. Subsequent
     // refreshes keep the existing list visible so the doctor isn't staring
     // at a blank screen during pull-to-refresh.
-    if (isLoading && patients.isEmpty) {
+    if (isLoading && all.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (patients.isEmpty) {
+    // No patients sharing at all → just the empty state, no controls (there's
+    // nothing to search or filter).
+    if (all.isEmpty) {
       return RefreshIndicator(
         onRefresh: _refresh,
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
-          children: [
-            _EmptyState(error: error),
-          ],
+          children: [_EmptyState(error: error)],
         ),
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _refresh,
-      child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        itemCount: patients.length + 1, // +1 for the header card
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (context, index) {
-          if (index == 0) {
-            return _ListHeader(count: patients.length);
-          }
-          final patient = patients[index - 1];
-          return _PatientTile(
-            patient: patient,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) =>
-                      DoctorPatientDetailScreen(patient: patient),
-                ),
-              );
-            },
-          );
-        },
-      ),
+    final visible = _visible(all);
+    final needsReviewCount = all
+        .where((p) => p.latestScan != null && !p.latestScan!.hasDoctorNote)
+        .length;
+
+    return Column(
+      children: [
+        _Controls(
+          searchController: _searchController,
+          onQueryChanged: (v) => setState(() => _query = v),
+          sort: _sort,
+          onSortChanged: (s) => setState(() => _sort = s),
+          needsReviewOnly: _needsReviewOnly,
+          needsReviewCount: needsReviewCount,
+          onNeedsReviewToggled: (v) => setState(() => _needsReviewOnly = v),
+          totalCount: all.length,
+          visibleCount: visible.length,
+        ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _refresh,
+            child: visible.isEmpty
+                ? ListView(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 48),
+                    children: const [_NoMatchesState()],
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                    itemCount: visible.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final patient = visible[index];
+                      return _PatientTile(
+                        patient: patient,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  DoctorPatientDetailScreen(patient: patient),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+          ),
+        ),
+      ],
     );
   }
 }
 
-class _ListHeader extends StatelessWidget {
-  const _ListHeader({required this.count});
-  final int count;
+/// Search field + sort selector + "Needs review" filter chip, plus a small
+/// count line so the doctor always knows how many of the total are showing.
+class _Controls extends StatelessWidget {
+  const _Controls({
+    required this.searchController,
+    required this.onQueryChanged,
+    required this.sort,
+    required this.onSortChanged,
+    required this.needsReviewOnly,
+    required this.needsReviewCount,
+    required this.onNeedsReviewToggled,
+    required this.totalCount,
+    required this.visibleCount,
+  });
+
+  final TextEditingController searchController;
+  final ValueChanged<String> onQueryChanged;
+  final _PatientSort sort;
+  final ValueChanged<_PatientSort> onSortChanged;
+  final bool needsReviewOnly;
+  final int needsReviewCount;
+  final ValueChanged<bool> onNeedsReviewToggled;
+  final int totalCount;
+  final int visibleCount;
 
   @override
   Widget build(BuildContext context) {
-    final label = count == 1 ? 'patient sharing' : 'patients sharing';
     return Padding(
-      padding: const EdgeInsets.only(left: 4, right: 4, top: 4, bottom: 4),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.people_alt_outlined,
-              color: AppTheme.textSecondary(context), size: 18),
-          const SizedBox(width: 8),
+          TextField(
+            controller: searchController,
+            onChanged: onQueryChanged,
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              isDense: true,
+              hintText: 'Search patients by name',
+              prefixIcon: const Icon(Icons.search, size: 20),
+              suffixIcon: searchController.text.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      tooltip: 'Clear',
+                      onPressed: () {
+                        searchController.clear();
+                        onQueryChanged('');
+                      },
+                    ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            ),
+          ),
+          const SizedBox(height: 10),
+          // Sort chips + the needs-review filter, wrapped so they reflow on
+          // narrow widths instead of overflowing the row.
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Icon(Icons.sort,
+                  size: 18, color: AppTheme.textSecondary(context)),
+              for (final s in _PatientSort.values)
+                ChoiceChip(
+                  label: Text(s.label),
+                  selected: sort == s,
+                  onSelected: (_) => onSortChanged(s),
+                  visualDensity: VisualDensity.compact,
+                  labelStyle: const TextStyle(fontSize: 12.5),
+                ),
+              FilterChip(
+                avatar: Icon(
+                  Icons.assignment_late_outlined,
+                  size: 16,
+                  color: needsReviewOnly
+                      ? AppTheme.accent
+                      : AppTheme.textSecondary(context),
+                ),
+                label: Text('Needs review ($needsReviewCount)'),
+                selected: needsReviewOnly,
+                onSelected: onNeedsReviewToggled,
+                visualDensity: VisualDensity.compact,
+                labelStyle: const TextStyle(fontSize: 12.5),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
           Text(
-            '$count $label',
+            visibleCount == totalCount
+                ? '$totalCount ${totalCount == 1 ? 'patient' : 'patients'} sharing'
+                : 'Showing $visibleCount of $totalCount',
             style: TextStyle(
               color: AppTheme.textSecondary(context),
-              fontSize: 13,
+              fontSize: 12.5,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -132,6 +315,7 @@ class _PatientTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final latest = patient.latestScan;
+    final needsReview = latest != null && !latest.hasDoctorNote;
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
@@ -164,6 +348,24 @@ class _PatientTile extends StatelessWidget {
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (needsReview) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.assignment_late_outlined,
+                              size: 13, color: AppTheme.accent),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Needs review',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.accent,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -254,6 +456,44 @@ class _SeverityChip extends StatelessWidget {
           fontWeight: FontWeight.w600,
         ),
       ),
+    );
+  }
+}
+
+/// Shown when patients exist but none match the active search/filter. Distinct
+/// from [_EmptyState] (which means "no patients are sharing at all").
+class _NoMatchesState extends StatelessWidget {
+  const _NoMatchesState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.search_off,
+            size: 48, color: AppTheme.textSecondary(context)),
+        const SizedBox(height: 14),
+        Text(
+          'No patients match',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary(context),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Try a different name, clear the search, or turn off the '
+          '"Needs review" filter.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 13,
+            color: AppTheme.textSecondary(context),
+            height: 1.4,
+          ),
+        ),
+      ],
     );
   }
 }

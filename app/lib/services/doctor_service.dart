@@ -148,10 +148,13 @@ class DoctorService extends ChangeNotifier {
       for (final p in profiles) {
         DoctorScanSummary? summary;
         try {
+          // Embed doctor_notes(note) on the latest scan so the list can
+          // power a "needs review" filter (latest scan has no doctor note
+          // yet) without a second round-trip per patient.
           final scanRow = await _client
               .from('scans')
               .select(
-                  'id, taken_at, cook_grade, severity_label, inflammatory_count, non_inflammatory_count, post_acne_count')
+                  'id, taken_at, cook_grade, severity_label, inflammatory_count, non_inflammatory_count, post_acne_count, doctor_notes(note)')
               .eq('user_id', p.id)
               .order('taken_at', ascending: false)
               .limit(1)
@@ -162,6 +165,7 @@ class DoctorService extends ChangeNotifier {
               cookGrade: (scanRow['cook_grade'] as num?)?.toInt() ?? 0,
               severityLabel:
                   (scanRow['severity_label'] as String?) ?? 'Unknown',
+              hasDoctorNote: _embedHasNote(scanRow['doctor_notes']),
             );
           }
         } catch (e) {
@@ -194,6 +198,20 @@ class DoctorService extends ChangeNotifier {
       _isLoadingPatients = false;
       notifyListeners();
     }
+  }
+
+  /// Interprets a `doctor_notes` PostgREST embed (Map, List, or null) and
+  /// reports whether a non-empty note exists. Mirrors the forgiving parsing
+  /// in [Scan.fromRow] so the list and detail views agree on "has a note".
+  static bool _embedHasNote(Object? embed) {
+    String? note;
+    if (embed is Map) {
+      note = (embed['note'] as String?)?.trim();
+    } else if (embed is List && embed.isNotEmpty) {
+      final first = embed.first;
+      if (first is Map) note = (first['note'] as String?)?.trim();
+    }
+    return note != null && note.isNotEmpty;
   }
 
   /// Loads the full scan history for [patientId], resolves signed image URLs,
@@ -429,9 +447,14 @@ class DoctorScanSummary {
     required this.takenAt,
     required this.cookGrade,
     required this.severityLabel,
+    this.hasDoctorNote = false,
   });
 
   final DateTime takenAt;
   final int cookGrade;
   final String severityLabel;
+
+  /// Whether the doctor has already left a note on this (the patient's most
+  /// recent) scan. Drives the "Needs review" filter on the patient list.
+  final bool hasDoctorNote;
 }
