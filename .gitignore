@@ -13,6 +13,11 @@ app/.pub/
 app/coverage/
 app/**/.last_build_id
 
+# ====== Supabase CLI local state ======
+# Project ref, linked-project, and version pins the CLI writes locally.
+# Machine/login-specific — not source.
+**/supabase/.temp/
+
 # ====== Python (the spike) ======
 spike/.venv/
 spike/__pycache__/
