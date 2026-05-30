@@ -99,6 +99,12 @@ CREATE POLICY "Demo doctor can send in consenting threads"
 -- re-running is safe.
 DO $$
 BEGIN
+    -- Supabase provisions the supabase_realtime publication by default, but
+    -- create it if a fresh/edge-case project is missing it so the ADD below
+    -- can't fail.
+    IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+        CREATE PUBLICATION supabase_realtime;
+    END IF;
     IF NOT EXISTS (
         SELECT 1 FROM pg_publication_tables
         WHERE pubname = 'supabase_realtime'
