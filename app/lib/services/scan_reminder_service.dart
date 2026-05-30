@@ -245,6 +245,10 @@ class ScanReminderService extends ChangeNotifier {
       'Open DermaTrack and capture your daily scan to keep your trend up to date.',
       scheduled,
       details,
+      // Required by flutter_local_notifications: interpret [scheduled] as an
+      // absolute wall-clock instant (not relative to a wall-clock change).
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       // matchDateTimeComponents: time → re-fires every day at the same
       // wall-clock time. We don't have to re-schedule from app code; the
