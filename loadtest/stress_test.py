@@ -70,8 +70,7 @@ RESULTS = []          # list of (stage_label, vus, op, ms, ok, status)
 UPLOADED_PATHS = []   # storage paths to clean up on LT_BASE_URL
 
 
-def http(method, url, headers=None, body=None, timeout=60):
-    """Return (status, bytes, elapsed_ms, err). Never raises."""
+def _http_once(method, url, headers, body, sock_timeout, out):
     h = dict(headers or {})
     data = body
     if isinstance(body, (dict, list)):
@@ -80,13 +79,34 @@ def http(method, url, headers=None, body=None, timeout=60):
     req = urllib.request.Request(url, data=data, headers=h, method=method)
     t0 = time.perf_counter()
     try:
-        with urllib.request.urlopen(req, timeout=timeout, context=_ctx) as r:
+        with urllib.request.urlopen(req, timeout=sock_timeout, context=_ctx) as r:
             payload = r.read()
-            return r.status, payload, (time.perf_counter() - t0) * 1000, None
+            out.append((r.status, payload, (time.perf_counter() - t0) * 1000, None))
     except urllib.error.HTTPError as e:
-        return e.code, e.read(), (time.perf_counter() - t0) * 1000, f"HTTP {e.code}"
+        out.append((e.code, e.read(), (time.perf_counter() - t0) * 1000, f"HTTP {e.code}"))
     except Exception as e:  # noqa: BLE001
-        return 0, b"", (time.perf_counter() - t0) * 1000, str(e)
+        out.append((0, b"", (time.perf_counter() - t0) * 1000, str(e)))
+
+
+def http(method, url, headers=None, body=None, timeout=30):
+    """Return (status, bytes, elapsed_ms, err). Never raises.
+
+    Enforces a HARD wall-clock cap of `timeout` seconds: urllib's own timeout
+    only governs individual socket ops, so a slowly-trickling/stalled
+    connection could otherwise run for minutes (this caused the ~30-min tail
+    outliers at 20 VUs). We run the request in a daemon thread and abandon it
+    if it overruns, recording it as a capped failure.
+    """
+    out = []
+    t0 = time.perf_counter()
+    th = threading.Thread(target=_http_once,
+                          args=(method, url, headers, body, timeout, out),
+                          daemon=True)
+    th.start()
+    th.join(timeout)
+    if th.is_alive() or not out:
+        return 0, b"", (time.perf_counter() - t0) * 1000, "hard-timeout"
+    return out[0]
 
 
 def record(stage, vus, op, ms, ok, status):
@@ -236,7 +256,7 @@ def analysis_benchmark(abase, aanon, email, password, n):
         st, payload, ms, err = http(
             "POST", f"{abase}/functions/v1/analyze-scan", auth,
             {"scan_id": scan_id, "image_path": path, "region": "full_face"},
-            timeout=120)
+            timeout=90)
         det = clf = None
         if st == 200:
             try:
