@@ -30,10 +30,23 @@ class ScanReminderService extends ChangeNotifier {
   static const String _kHourKey = 'scan_reminder_hour';
   static const String _kMinuteKey = 'scan_reminder_minute';
 
-  /// Single notification ID used by the daily scan reminder. Stable
+  /// Single notification ID used by the user-set daily scan reminder. Stable
   /// forever — bumping it would create a second notification instead of
   /// replacing the first.
   static const int _reminderNotificationId = 1;
+
+  /// Fixed midday nudge ("have you scanned yet?") and an evening
+  /// streak-deadline nudge ("only a few hours left today"). IDs ≥ 100 per the
+  /// headroom convention noted above. Both fire daily and are gated by the
+  /// same [enabled] opt-in as the user-set reminder.
+  static const int _middayNotificationId = 100;
+  static const int _deadlineNotificationId = 101;
+
+  /// Wall-clock times for the two fixed nudges. Midday = 12:00; the evening
+  /// deadline nudge fires at 21:00 so there's still time to scan before
+  /// midnight (the daily cut-off the dashboard countdown ticks down to).
+  static const int _middayHour = 12;
+  static const int _deadlineHour = 21;
 
   /// Android notification channel ID. Stable forever — the OS caches
   /// channel settings (sound, importance) per ID and changing it would
@@ -146,6 +159,8 @@ class ScanReminderService extends ChangeNotifier {
       _enabled = false;
       await _saveToPrefs();
       await _plugin.cancel(_reminderNotificationId);
+      await _plugin.cancel(_middayNotificationId);
+      await _plugin.cancel(_deadlineNotificationId);
     }
     notifyListeners();
   }
@@ -216,9 +231,51 @@ class ScanReminderService extends ChangeNotifier {
   /// time. Cancels any existing reminder under the same notification ID
   /// first so we never accumulate duplicates.
   Future<void> _scheduleReminder() async {
-    await _plugin.cancel(_reminderNotificationId);
+    // The user-set reminder at the chosen time.
+    await _scheduleDaily(
+      id: _reminderNotificationId,
+      hour: _hour,
+      minute: _minute,
+      title: "Time for today's scan",
+      body:
+          'Open DermaTrack and capture your daily scan to keep your trend up to date.',
+    );
 
-    final scheduled = _nextInstanceOf(_hour, _minute);
+    // Fixed midday nudge.
+    await _scheduleDaily(
+      id: _middayNotificationId,
+      hour: _middayHour,
+      minute: 0,
+      title: 'Midday skin check',
+      body:
+          "Have you taken today's DermaTrack scan yet? Scanning around the same time keeps your trend accurate.",
+    );
+
+    // Evening streak-deadline nudge — the Duolingo-style "don't lose your
+    // streak" prompt while there's still time before midnight.
+    await _scheduleDaily(
+      id: _deadlineNotificationId,
+      hour: _deadlineHour,
+      minute: 0,
+      title: "Don't break your scan streak",
+      body:
+          'Only a few hours left to log today\'s scan. Open DermaTrack to keep your streak going.',
+    );
+  }
+
+  /// Schedules (or re-schedules) a single daily notification at [hour]:[minute].
+  /// Cancels any existing notification under [id] first so we never accumulate
+  /// duplicates, then arms a daily-repeating one.
+  Future<void> _scheduleDaily({
+    required int id,
+    required int hour,
+    required int minute,
+    required String title,
+    required String body,
+  }) async {
+    await _plugin.cancel(id);
+
+    final scheduled = _nextInstanceOf(hour, minute);
 
     const androidDetails = AndroidNotificationDetails(
       _channelId,
@@ -240,9 +297,9 @@ class ScanReminderService extends ChangeNotifier {
     );
 
     await _plugin.zonedSchedule(
-      _reminderNotificationId,
-      'Time for today\'s scan',
-      'Open DermaTrack and capture your daily scan to keep your trend up to date.',
+      id,
+      title,
+      body,
       scheduled,
       details,
       // Required by flutter_local_notifications: interpret [scheduled] as an
@@ -251,8 +308,7 @@ class ScanReminderService extends ChangeNotifier {
           UILocalNotificationDateInterpretation.absoluteTime,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       // matchDateTimeComponents: time → re-fires every day at the same
-      // wall-clock time. We don't have to re-schedule from app code; the
-      // OS handles the daily repeat for us.
+      // wall-clock time. The OS handles the daily repeat for us.
       matchDateTimeComponents: DateTimeComponents.time,
     );
   }

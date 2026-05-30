@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/scan.dart';
@@ -86,6 +88,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 MaterialPageRoute(
                   builder: (_) => const ScanSessionScreen(),
                 ),
+              );
+            },
+          ),
+          const SizedBox(height: 10),
+          // Duolingo-style daily deadline: live countdown to midnight when the
+          // user hasn't scanned today, or a "done" state once they have.
+          _DailyScanDeadlineCard(
+            scannedToday: _scannedToday(scans),
+            dayStreak: _computeDayStreak(scans),
+            onScan: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ScanSessionScreen()),
               );
             },
           ),
@@ -203,6 +217,199 @@ int _computeDayStreak(List<Scan> scans) {
     cursor = cursor.subtract(const Duration(days: 1));
   }
   return streak;
+}
+
+/// True if any scan was taken today (device-local midnight boundary).
+/// Drives the daily-deadline card's "done" state.
+bool _scannedToday(List<Scan> scans) {
+  final now = DateTime.now();
+  for (final s in scans) {
+    final t = s.takenAt;
+    if (t.year == now.year && t.month == now.month && t.day == now.day) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/// Duolingo-style daily commitment card. When the user hasn't scanned today
+/// it shows a live countdown to midnight (the daily cut-off), with the color
+/// shifting to amber then red as the deadline nears, plus a streak nudge.
+/// Once today's scan is in, it flips to a calm "done" state.
+class _DailyScanDeadlineCard extends StatefulWidget {
+  const _DailyScanDeadlineCard({
+    required this.scannedToday,
+    required this.dayStreak,
+    required this.onScan,
+  });
+
+  final bool scannedToday;
+  final int dayStreak;
+  final VoidCallback onScan;
+
+  @override
+  State<_DailyScanDeadlineCard> createState() => _DailyScanDeadlineCardState();
+}
+
+class _DailyScanDeadlineCardState extends State<_DailyScanDeadlineCard> {
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    // Refresh the countdown once a minute. Only meaningful while not yet
+    // scanned, but it's cheap to keep running and avoids start/stop churn.
+    _ticker = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.scannedToday) return _doneCard(context);
+
+    final now = DateTime.now();
+    final midnight =
+        DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+    final remaining = midnight.difference(now);
+    final hours = remaining.inHours;
+    final minutes = remaining.inMinutes % 60;
+
+    // Urgency ramp: red under 3h, amber under 6h, brand otherwise.
+    final Color color = hours < 3
+        ? const Color(0xFFF44336)
+        : (hours < 6 ? const Color(0xFFFF9800) : AppTheme.primary);
+
+    // Fraction of the day still remaining, for the progress bar.
+    final fractionLeft = (remaining.inMinutes / (24 * 60)).clamp(0.0, 1.0);
+
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: widget.onScan,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.timer_outlined, color: color, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${hours}h ${minutes}m left to scan today',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: color,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          widget.dayStreak > 0
+                              ? 'Keep your ${widget.dayStreak}-day streak alive — scan before midnight.'
+                              : "Take today's scan before midnight to start a streak.",
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: AppTheme.textSecondary(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (widget.dayStreak > 0) ...[
+                    const SizedBox(width: 8),
+                    _StreakBadge(days: widget.dayStreak, color: color),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: fractionLeft,
+                  minHeight: 6,
+                  backgroundColor: color.withValues(alpha: 0.15),
+                  valueColor: AlwaysStoppedAnimation<Color>(color),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _doneCard(BuildContext context) {
+    const green = Color(0xFF2E7D32);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Row(
+          children: [
+            const Icon(Icons.check_circle, color: green, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                widget.dayStreak > 1
+                    ? "Today's scan is done — ${widget.dayStreak}-day streak going strong!"
+                    : "Today's scan is done. Nice — see you tomorrow!",
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: green,
+                ),
+              ),
+            ),
+            if (widget.dayStreak > 0)
+              _StreakBadge(days: widget.dayStreak, color: green),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StreakBadge extends StatelessWidget {
+  const _StreakBadge({required this.days, required this.color});
+  final int days;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.local_fire_department, size: 14, color: color),
+          const SizedBox(width: 3),
+          Text(
+            '$days',
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Primary dashboard CTA. Launches the guided 5-step daily scan session
