@@ -7,6 +7,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/scan_thumbnail.dart';
 import '../../widgets/severity_trend_chart.dart';
 import '../../widgets/skin_summary_card.dart';
+import 'doctor_scan_compare_screen.dart';
 import 'doctor_scan_detail_screen.dart';
 
 /// Read-only view of a patient's scan history, severity trend, and skin
@@ -134,7 +135,34 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen> {
           ),
         ),
         const SizedBox(height: 20),
-        _SectionTitle('Scan history (${scans.length})'),
+        Row(
+          children: [
+            Expanded(child: _SectionTitle('Scan history (${scans.length})')),
+            // Comparison needs two scans to be meaningful; hide the action
+            // until the patient has at least a baseline and a follow-up.
+            if (scans.length >= 2)
+              TextButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => DoctorScanCompareScreen(
+                        patient: widget.patient,
+                        scans: scans,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.compare_arrows, size: 18),
+                label: const Text('Compare'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppTheme.primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  minimumSize: const Size(0, 34),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+          ],
+        ),
         const SizedBox(height: 12),
         _ScansGrid(
           scans: scans,
