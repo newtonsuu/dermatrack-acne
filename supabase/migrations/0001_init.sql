@@ -31,6 +31,21 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     CONSTRAINT profiles_username_min_length CHECK (length(username) >= 3)
 );
 
+-- Defensive: if `public.profiles` already existed (e.g. a Supabase starter
+-- template created one without these columns), the CREATE above was a no-op.
+-- Add any missing columns so the rest of this migration (and the app) works
+-- regardless of how the table got there. Non-destructive: existing columns
+-- and data are untouched.
+ALTER TABLE public.profiles
+    ADD COLUMN IF NOT EXISTS username             text,
+    ADD COLUMN IF NOT EXISTS display_name         text,
+    ADD COLUMN IF NOT EXISTS profile_picture_path text,
+    ADD COLUMN IF NOT EXISTS created_at           timestamptz NOT NULL DEFAULT now(),
+    ADD COLUMN IF NOT EXISTS updated_at           timestamptz NOT NULL DEFAULT now();
+
+-- Ensure username is unique (no-op if the constraint/index already exists).
+CREATE UNIQUE INDEX IF NOT EXISTS profiles_username_key ON public.profiles (username);
+
 COMMENT ON TABLE public.profiles
     IS 'App-specific user fields. 1:1 with auth.users; row auto-created by trigger on signup.';
 COMMENT ON COLUMN public.profiles.username
