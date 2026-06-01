@@ -142,7 +142,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         if (value == null || value.trim().isEmpty) {
                           return 'Email is required.';
                         }
-                        final emailRegex = RegExp(r'^[\w.\-]+@[\w\-]+\.[a-zA-Z]{2,}$');
+                        // Allow multi-label domains (e.g. mymail.mapua.edu.ph).
+                        final emailRegex = RegExp(r'^[\w.\-]+@([\w\-]+\.)+[a-zA-Z]{2,}$');
                         if (!emailRegex.hasMatch(value.trim())) {
                           return 'Please enter a valid email address.';
                         }
