@@ -27,36 +27,45 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Load the persisted theme choice before runApp so we don't flash the
-  // default light theme on launch when the user previously picked dark.
-  await ThemeController.instance.init();
-
-  // Boot the scan-reminder service. Initializes the local-notifications
-  // plugin and re-arms any previously-scheduled reminder (defensive —
-  // covers the rare case where Android's alarm manager dropped it).
-  // Best-effort: failure here shouldn't prevent the app from launching,
-  // it just means the reminder won't fire until the user re-toggles it.
+  // default light theme on launch. Bounded with a timeout so a slow storage
+  // read can never hold the splash screen.
   try {
-    await ScanReminderService.instance.initialize();
+    await ThemeController.instance.init().timeout(const Duration(seconds: 3));
   } catch (e) {
-    debugPrint('ScanReminderService.initialize failed: $e');
+    debugPrint('ThemeController.init failed/slow: $e');
   }
 
-  // Initialize Supabase. If the keys weren't passed in, log loudly and
-  // continue — the AuthService will surface a clear error if anyone tries
-  // to use it without an initialized client.
+  // Initialize Supabase before the first frame so AuthService has a client,
+  // but bound it: a network stall must not pin the app on the splash screen
+  // forever. If it times out, the app still launches and surfaces a clear
+  // connectivity error rather than hanging on the logo.
   if (_supabaseUrl.isEmpty || _supabaseAnonKey.isEmpty) {
     debugPrint(
       'WARNING: SUPABASE_URL or SUPABASE_ANON_KEY not provided via '
       '--dart-define. Auth and database calls will fail. See main.dart.',
     );
   } else {
-    await Supabase.initialize(
-      url: _supabaseUrl,
-      anonKey: _supabaseAnonKey,
-    );
+    try {
+      await Supabase.initialize(
+        url: _supabaseUrl,
+        anonKey: _supabaseAnonKey,
+      ).timeout(const Duration(seconds: 10));
+    } catch (e) {
+      debugPrint('Supabase.initialize failed/slow: $e');
+    }
   }
 
   runApp(const DermaTrackApp());
+
+  // Boot the scan-reminder service AFTER the UI is up. It initializes the
+  // local-notifications + timezone plugins, which can be slow (or hang on
+  // platforms without an implementation) — doing it before runApp was what
+  // could leave the app stuck on the splash logo. It's best-effort and only
+  // needs to be ready before the user toggles a reminder, so we fire it in
+  // the background and never block first paint on it.
+  ScanReminderService.instance.initialize().catchError((Object e) {
+    debugPrint('ScanReminderService.initialize failed: $e');
+  });
 }
 
 class DermaTrackApp extends StatefulWidget {

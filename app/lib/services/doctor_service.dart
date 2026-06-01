@@ -159,16 +159,13 @@ class DoctorService extends ChangeNotifier {
       }
 
       // 2) Per patient, fetch their most recent scan (single row) so the
-      //    list tile can show last-scan summary. Done sequentially because
-      //    we typically have a handful of patients for the demo. Easy to
-      //    parallelise with Future.wait if this ever grows.
-      final withSummary = <DoctorPatient>[];
-      for (final p in profiles) {
-        DoctorScanSummary? summary;
+      //    list tile can show last-scan summary. Run concurrently with
+      //    Future.wait so the list loads in roughly one round-trip instead of
+      //    one per patient (was an O(patients) serial N+1).
+      //    The embedded doctor_notes(note) powers the "needs review" filter
+      //    without a second round-trip per patient.
+      final withSummary = await Future.wait(profiles.map((p) async {
         try {
-          // Embed doctor_notes(note) on the latest scan so the list can
-          // power a "needs review" filter (latest scan has no doctor note
-          // yet) without a second round-trip per patient.
           final scanRow = await _client
               .from('scans')
               .select(
@@ -178,12 +175,14 @@ class DoctorService extends ChangeNotifier {
               .limit(1)
               .maybeSingle();
           if (scanRow != null) {
-            summary = DoctorScanSummary(
-              takenAt: DateTime.parse(scanRow['taken_at'] as String).toLocal(),
-              cookGrade: (scanRow['cook_grade'] as num?)?.toInt() ?? 0,
-              severityLabel:
-                  (scanRow['severity_label'] as String?) ?? 'Unknown',
-              hasDoctorNote: _embedHasNote(scanRow['doctor_notes']),
+            return p.copyWith(
+              latestScan: DoctorScanSummary(
+                takenAt: DateTime.parse(scanRow['taken_at'] as String).toLocal(),
+                cookGrade: (scanRow['cook_grade'] as num?)?.toInt() ?? 0,
+                severityLabel:
+                    (scanRow['severity_label'] as String?) ?? 'Unknown',
+                hasDoctorNote: _embedHasNote(scanRow['doctor_notes']),
+              ),
             );
           }
         } catch (e) {
@@ -192,8 +191,8 @@ class DoctorService extends ChangeNotifier {
           debugPrint(
               'DoctorService.loadPatients: summary for ${p.id} failed: $e');
         }
-        withSummary.add(p.copyWith(latestScan: summary));
-      }
+        return p;
+      }));
 
       // Sort: patients with a recent scan first, newest scan at the top.
       // Patients with no scans go to the bottom alphabetically so they're
@@ -261,21 +260,24 @@ class DoctorService extends ChangeNotifier {
         }
       }
 
-      // Resolve signed URLs for each scan image. RLS allows the doctor to
-      // read scan-images for consenting patients (see 0002_doctor_demo.sql).
-      final withUrls = <Scan>[];
-      for (final scan in parsed) {
-        String? url;
+      // Resolve signed URLs for each scan image concurrently (was one serial
+      // round-trip per scan). RLS allows the doctor to read scan-images for
+      // consenting patients (see 0002_doctor_demo.sql).
+      final urls = await Future.wait(parsed.map((scan) async {
         try {
-          url = await _client.storage
+          return await _client.storage
               .from('scan-images')
               .createSignedUrl(scan.imagePath, _signedUrlTtlSeconds);
         } catch (e) {
           debugPrint(
               'DoctorService.loadPatientScans: signed URL for ${scan.imagePath} failed: $e');
+          return null;
         }
-        withUrls.add(scan.copyWith(imageUrl: url));
-      }
+      }));
+      final withUrls = <Scan>[
+        for (var i = 0; i < parsed.length; i++)
+          parsed[i].copyWith(imageUrl: urls[i]),
+      ];
 
       _scansByPatient[patientId] = List.unmodifiable(withUrls);
       _scansError[patientId] = null;

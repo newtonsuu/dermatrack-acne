@@ -122,14 +122,17 @@ class ScanService extends ChangeNotifier {
         }
       }
 
-      // Resolve signed URLs. Done sequentially for simplicity — for a typical
-      // user with under a few hundred scans this is fine. Can swap to
-      // `createSignedUrls` batch endpoint if it ever becomes a bottleneck.
-      final withUrls = <Scan>[];
-      for (final scan in parsed) {
-        final url = await _signedUrlFor(scan.imagePath);
-        withUrls.add(scan.copyWith(imageUrl: url));
-      }
+      // Resolve signed URLs concurrently rather than one-at-a-time. A user
+      // with many scans previously waited for N serial round-trips; running
+      // them in parallel collapses that to roughly a single round-trip of
+      // latency. _signedUrlFor swallows per-item errors (returns null), so a
+      // single bad path can't fail the batch.
+      final urls =
+          await Future.wait(parsed.map((s) => _signedUrlFor(s.imagePath)));
+      final withUrls = <Scan>[
+        for (var i = 0; i < parsed.length; i++)
+          parsed[i].copyWith(imageUrl: urls[i]),
+      ];
 
       _scans = List.unmodifiable(withUrls);
       _lastLoadError = null;
