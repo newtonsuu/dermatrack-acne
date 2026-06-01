@@ -160,7 +160,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         if (value == null || value.trim().isEmpty) {
                           return 'Email is required.';
                         }
-                        final regex = RegExp(r'^[\w.\-]+@[\w\-]+\.[a-zA-Z]{2,}$');
+                        // Allow multi-label domains (e.g. mymail.mapua.edu.ph),
+                        // not just single-label ones like gmail.com.
+                        final regex = RegExp(r'^[\w.\-]+@([\w\-]+\.)+[a-zA-Z]{2,}$');
                         if (!regex.hasMatch(value.trim())) {
                           return 'Please enter a valid email address.';
                         }
