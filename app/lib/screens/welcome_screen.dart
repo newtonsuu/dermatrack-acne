@@ -80,8 +80,11 @@ class WelcomeScreen extends StatelessWidget {
                         _login(context, label: 'Admin', showRegister: false),
                   ),
                   const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  // Wrap (not Row) so it never overflows horizontally on narrow
+                  // screens / large text scales.
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
                         'New patient?',
