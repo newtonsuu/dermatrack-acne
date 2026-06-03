@@ -5,5 +5,5 @@
 /// screens — replace it with your real support inbox before shipping.
 library;
 
-const String kAppVersion = '0.3.0';
+const String kAppVersion = '0.4.0';
 const String kSupportEmail = 'support@dermatrack.app';
