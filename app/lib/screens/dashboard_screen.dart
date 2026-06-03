@@ -7,15 +7,16 @@ import '../models/scan.dart';
 import '../services/auth_service.dart';
 import '../services/scan_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/notification_bell_action.dart';
 import '../widgets/scan_thumbnail.dart';
 import '../widgets/severity_trend_chart.dart';
-import '../widgets/user_avatar_action.dart';
 import 'camera_screen.dart';
 import 'chat_screen.dart';
 import 'gallery_screen.dart';
 import 'prescriptions_screen.dart';
 import 'scan_detail_screen.dart';
 import 'scan_session/scan_session_screen.dart';
+import 'settings_screen.dart';
 
 /// Home/dashboard. The first surface a logged-in user sees.
 ///
@@ -58,15 +59,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         title: const Text('DermaTrack'),
         actions: [
+          const NotificationBellAction(),
           IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Notifications — coming soon')),
-              );
-            },
+            tooltip: 'Settings',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            ),
           ),
-          const UserAvatarAction(),
         ],
       ),
       body: ListView(

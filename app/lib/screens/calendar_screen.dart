@@ -4,7 +4,8 @@ import '../models/scan.dart';
 import '../services/scan_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/facial_summary_card.dart';
-import '../widgets/user_avatar_action.dart';
+import '../widgets/notification_bell_action.dart';
+import '../widgets/settings_gear_action.dart';
 import 'scan_detail_screen.dart';
 
 /// Monthly calendar showing scan history. Each day either renders a small
@@ -134,7 +135,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       backgroundColor: AppTheme.background(context),
       appBar: AppBar(
         title: const Text('Calendar'),
-        actions: const [UserAvatarAction()],
+        actions: const [NotificationBellAction(), SettingsGearAction()],
       ),
       body: SafeArea(
         child: Padding(

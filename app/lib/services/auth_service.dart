@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 
+import 'security_activity_service.dart';
+
 /// Email address that triggers doctor-mode routing in the app.
 ///
 /// DEMO ONLY. The Supabase migration `0002_doctor_demo.sql` references this
@@ -132,6 +134,10 @@ class AuthService extends ChangeNotifier {
         );
       }
       // _currentUser is updated by the onAuthStateChange listener.
+      SecurityActivityService.instance.record(
+        SecurityEventType.signIn,
+        'Signed in to your account on this device.',
+      );
       return null;
     } on supa.AuthException catch (e) {
       return _mapAuthException(e);
@@ -256,6 +262,10 @@ class AuthService extends ChangeNotifier {
           message: 'Could not change password. Try signing in again.',
         );
       }
+      SecurityActivityService.instance.record(
+        SecurityEventType.passwordChange,
+        'Your account password was changed.',
+      );
       return null;
     } on supa.AuthException catch (e) {
       return _mapAuthException(e);

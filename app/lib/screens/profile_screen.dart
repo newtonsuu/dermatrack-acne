@@ -9,9 +9,10 @@ import '../services/profile_service.dart';
 import '../services/scan_reminder_service.dart';
 import '../services/scan_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/notification_bell_action.dart';
 import '../widgets/scan_thumbnail.dart';
+import '../widgets/settings_gear_action.dart';
 import '../widgets/skin_summary_card.dart';
-import '../widgets/user_avatar_action.dart';
 import 'gallery_screen.dart';
 import 'patient_history/patient_history_screen.dart';
 import 'scan_detail_screen.dart';
@@ -148,7 +149,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: AppTheme.background(context),
       appBar: AppBar(
         title: const Text('Profile'),
-        actions: const [UserAvatarAction()],
+        actions: const [NotificationBellAction(), SettingsGearAction()],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
