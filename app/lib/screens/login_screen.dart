@@ -216,8 +216,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     if (widget.showRegister) ...[
                       const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Text(
                             'No account yet?',
