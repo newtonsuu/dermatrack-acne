@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../data/severity_guidance.dart';
 import '../../models/scan.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/facial_summary_card.dart';
 import '../../widgets/scan_thumbnail.dart';
 import '../scan_detail_screen.dart';
 
@@ -45,7 +45,7 @@ class ScanSessionCompleteScreen extends StatelessWidget {
           if (scans.isEmpty)
             _EmptyCard()
           else ...[
-            _OverallSummaryCard(scans: scans),
+            FacialSummaryCard(scans: scans),
             const SizedBox(height: 20),
             const _SectionLabel('Region breakdown'),
             const SizedBox(height: 10),
@@ -189,7 +189,7 @@ class _RegionTile extends StatelessWidget {
                             ),
                           ),
                         ),
-                        _TierChip(
+                        SeverityTierChip(
                           cookGrade: scan.cookGrade,
                           severityLabel: scan.severityLabel,
                         ),
@@ -235,169 +235,6 @@ class _EmptyCard extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Computes the overall facial severity from the captured region scans and
-/// presents it as a per-region list + headline "Overall Result", plus the
-/// guidance for that tier.
-///
-/// The overall tier is the **worst** region's tier (the most affected zone
-/// drives the headline) — a conservative monitoring heuristic that matches
-/// how a clinician reads regional distribution, and never *understates*
-/// what the patient should keep an eye on.
-class _OverallSummaryCard extends StatelessWidget {
-  const _OverallSummaryCard({required this.scans});
-  final List<Scan> scans;
-
-  @override
-  Widget build(BuildContext context) {
-    final tier = _overallTier(scans);
-    final guidance = SeverityGuidance.forTier(tier);
-    final overallText = tier == SeverityTier.clear
-        ? 'Clear — no active acne detected'
-        : '${tier.label} Acne Severity';
-
-    return Container(
-      decoration: BoxDecoration(
-        color: guidance.color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: guidance.color.withValues(alpha: 0.4)),
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.assessment_outlined, size: 18, color: guidance.color),
-              const SizedBox(width: 8),
-              Text(
-                'Facial acne summary',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.textPrimary(context),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Per-region tiers (Forehead: Moderate, Left cheek: Mild, …).
-          for (final scan in scans)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 3),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      scan.region.label,
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        color: AppTheme.textPrimary(context),
-                      ),
-                    ),
-                  ),
-                  _TierChip(
-                    cookGrade: scan.cookGrade,
-                    severityLabel: scan.severityLabel,
-                  ),
-                ],
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Divider(height: 1, color: guidance.color.withValues(alpha: 0.25)),
-          ),
-          Row(
-            children: [
-              Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: guidance.color,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Overall Result: $overallText',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.textPrimary(context),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            guidance.recommendation,
-            style: TextStyle(
-              fontSize: 12.5,
-              height: 1.4,
-              color: AppTheme.textSecondary(context),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'For monitoring support only — not a medical diagnosis.',
-            style: TextStyle(
-              fontSize: 11,
-              fontStyle: FontStyle.italic,
-              color: AppTheme.textSecondary(context),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static SeverityTier _overallTier(List<Scan> scans) {
-    var worst = SeverityTier.clear;
-    for (final s in scans) {
-      final t = SeverityGuidance.tierFor(
-        cookGrade: s.cookGrade,
-        severityLabel: s.severityLabel,
-      );
-      if (t.rank > worst.rank) worst = t;
-    }
-    return worst;
-  }
-}
-
-/// Small colored pill showing a scan's coarse tier (Clear / Mild / Moderate /
-/// Severe), derived from its Cook grade.
-class _TierChip extends StatelessWidget {
-  const _TierChip({required this.cookGrade, required this.severityLabel});
-  final int cookGrade;
-  final String severityLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final tier = SeverityGuidance.tierFor(
-      cookGrade: cookGrade,
-      severityLabel: severityLabel,
-    );
-    final guidance = SeverityGuidance.forTier(tier);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      decoration: BoxDecoration(
-        color: guidance.color.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: guidance.color.withValues(alpha: 0.5)),
-      ),
-      child: Text(
-        tier.label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          color: guidance.color,
         ),
       ),
     );
