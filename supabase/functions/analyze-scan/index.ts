@@ -32,15 +32,16 @@ const ROBOFLOW_PROJECT = "acne-detection-zukbx";
 const ROBOFLOW_VERSION = "4";
 
 // Valid region values. Mirrors the CHECK constraint on public.scans.region
-// (migration 0004_scan_regions.sql) and the ScanRegion enum on the Flutter
-// side (models/scan.dart). Defensive copy lives here so a typo in the
-// client can't slip a bad value into the database — we'd surface a 400
-// before the insert attempts.
+// (migrations 0004_scan_regions.sql + 0010_scan_region_nose.sql) and the
+// ScanRegion enum on the Flutter side (models/scan.dart). Defensive copy
+// lives here so a typo in the client can't slip a bad value into the
+// database — we'd surface a 400 before the insert attempts.
 const VALID_REGIONS = new Set([
   "forehead",
   "left_cheek",
   "right_cheek",
   "chin",
+  "nose",
   "full_face",
 ]);
 
