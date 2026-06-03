@@ -23,6 +23,24 @@ const Set<String> kDoctorDemoEmails = {
   'dr.demo@dermatrack.demo',
 };
 
+/// Access role for the signed-in user. Mirrors `public.profiles.role`
+/// (migration 0011): patient | doctor | admin. The break-glass *admin* is the
+/// same admin role acting through a logged, time-limited emergency session —
+/// not a separate persistent role.
+enum UserRole { patient, doctor, admin }
+
+/// Parses the `role` text column into a [UserRole], defaulting to patient.
+UserRole userRoleFromString(String? s) {
+  switch (s) {
+    case 'admin':
+      return UserRole.admin;
+    case 'doctor':
+      return UserRole.doctor;
+    default:
+      return UserRole.patient;
+  }
+}
+
 /// Authentication service backed by Supabase Auth.
 ///
 /// Preserves the exact public surface of the previous in-memory stub so the
@@ -56,14 +74,38 @@ class AuthService extends ChangeNotifier {
   AppUser? get currentUser => _currentUser;
   bool get isSignedIn => _currentUser != null;
 
-  /// True when the signed-in user is the demo doctor account. The auth gate
-  /// in main.dart uses this to route to DoctorShell instead of HomeShell.
-  /// Comparison is case-insensitive because Supabase stores emails lower-
-  /// cased but typed input can vary.
-  bool get isDoctor {
-    final email = _currentUser?.email.toLowerCase().trim();
-    return email != null && kDoctorDemoEmails.contains(email);
-  }
+  // Role + account status, loaded from the profiles row once auth resolves.
+  // The role is now authoritative from the database (migration 0011), not the
+  // email allowlist — that allowlist remains only as a seed/back-compat hint.
+  UserRole _role = UserRole.patient;
+  bool _roleResolved = false;
+  bool _accountActive = true;
+
+  /// The signed-in user's role. Defaults to patient until [roleResolved].
+  UserRole get role => _role;
+
+  /// True once the role has been fetched after sign-in. The AuthGate waits on
+  /// this so it never flashes the wrong shell (e.g. patient view for a doctor)
+  /// while the role round-trips. Always true when signed out.
+  bool get roleResolved => !isSignedIn || _roleResolved;
+
+  /// False when an admin has deactivated this account.
+  bool get accountActive => _accountActive;
+
+  /// True when the signed-in user has the doctor role. The auth gate in
+  /// main.dart uses this to route to DoctorShell.
+  bool get isDoctor => _role == UserRole.doctor;
+
+  /// True when the signed-in user has the admin role (routes to AdminShell).
+  bool get isAdmin => _role == UserRole.admin;
+
+  // Client-side brute-force guard. After [_maxAttempts] consecutive failed
+  // sign-ins, sign-in is locked for [_lockoutDuration]. (Supabase also
+  // rate-limits server-side; this gives immediate local feedback.)
+  static const int _maxAttempts = 5;
+  static const Duration _lockoutDuration = Duration(seconds: 60);
+  int _failedAttempts = 0;
+  DateTime? _lockoutUntil;
 
   void _initialize() {
     // Supabase.instance.client throws if initialize() wasn't called. Guard
@@ -79,6 +121,7 @@ class AuthService extends ChangeNotifier {
     final session = _client.auth.currentSession;
     if (session != null) {
       _currentUser = _userFromSession(session);
+      _loadRole();
     }
 
     // React to future auth state changes (sign-in, sign-out, token refresh).
@@ -87,9 +130,50 @@ class AuthService extends ChangeNotifier {
       final next = session == null ? null : _userFromSession(session);
       if (next != _currentUser) {
         _currentUser = next;
+        if (next == null) {
+          // Signed out — reset role state.
+          _role = UserRole.patient;
+          _roleResolved = false;
+          _accountActive = true;
+        } else {
+          // Signed in (or switched account) — re-resolve the role.
+          _roleResolved = false;
+          _loadRole();
+        }
         notifyListeners();
       }
     });
+  }
+
+  /// Loads the signed-in user's role + account status from the profiles row.
+  /// Falls back to patient/active on any error so a transient failure can't
+  /// lock someone out of their own data. Fires listeners when [roleResolved]
+  /// flips true so the AuthGate can route.
+  Future<void> _loadRole() async {
+    final c = _clientOrNull;
+    final uid = c?.auth.currentUser?.id;
+    if (c == null || uid == null) {
+      _role = UserRole.patient;
+      _accountActive = true;
+      _roleResolved = true;
+      notifyListeners();
+      return;
+    }
+    try {
+      final row = await c
+          .from('profiles')
+          .select('role, is_active')
+          .eq('id', uid)
+          .maybeSingle();
+      _role = userRoleFromString(row?['role'] as String?);
+      _accountActive = (row?['is_active'] as bool?) ?? true;
+    } catch (e) {
+      debugPrint('AuthService._loadRole failed: $e');
+      _role = UserRole.patient;
+      _accountActive = true;
+    }
+    _roleResolved = true;
+    notifyListeners();
   }
 
   /// Signs the user in. Returns null on success, or an [AuthError] with a
@@ -120,6 +204,16 @@ class AuthService extends ChangeNotifier {
 
     if (_clientOrNull == null) return _notInitializedError();
 
+    // Brute-force lockout check.
+    final nowTs = DateTime.now();
+    if (_lockoutUntil != null && nowTs.isBefore(_lockoutUntil!)) {
+      final secs = _lockoutUntil!.difference(nowTs).inSeconds + 1;
+      return AuthError(
+        field: AuthField.password,
+        message: 'Too many attempts. Try again in ${secs}s.',
+      );
+    }
+
     try {
       final response = await _client.auth.signInWithPassword(
         email: emailKey,
@@ -134,12 +228,25 @@ class AuthService extends ChangeNotifier {
         );
       }
       // _currentUser is updated by the onAuthStateChange listener.
+      _failedAttempts = 0;
+      _lockoutUntil = null;
       SecurityActivityService.instance.record(
         SecurityEventType.signIn,
         'Signed in to your account on this device.',
       );
       return null;
     } on supa.AuthException catch (e) {
+      // Count consecutive failures; lock briefly after too many.
+      _failedAttempts++;
+      if (_failedAttempts >= _maxAttempts) {
+        _lockoutUntil = DateTime.now().add(_lockoutDuration);
+        _failedAttempts = 0;
+        return const AuthError(
+          field: AuthField.password,
+          message:
+              'Too many failed attempts. Please wait a minute before trying again.',
+        );
+      }
       return _mapAuthException(e);
     } catch (_) {
       return const AuthError(
