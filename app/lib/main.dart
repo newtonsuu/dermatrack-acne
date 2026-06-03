@@ -5,7 +5,10 @@ import 'screens/doctor/doctor_shell.dart';
 import 'screens/home_shell.dart';
 import 'screens/welcome_screen.dart';
 import 'services/auth_service.dart';
+import 'services/notification_center_service.dart';
+import 'services/notification_prefs_service.dart';
 import 'services/scan_reminder_service.dart';
+import 'services/security_activity_service.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
 
@@ -65,6 +68,20 @@ Future<void> main() async {
   // the background and never block first paint on it.
   ScanReminderService.instance.initialize().catchError((Object e) {
     debugPrint('ScanReminderService.initialize failed: $e');
+  });
+
+  // Notification preferences + the in-app Notification Center feed. Both are
+  // best-effort and synthesize/read from already-loaded data, so they never
+  // block first paint. The center listens to prefs + data services and
+  // rebuilds itself as those change.
+  NotificationPrefsService.instance.init().catchError((Object e) {
+    debugPrint('NotificationPrefsService.init failed: $e');
+  });
+  NotificationCenterService.instance.init().catchError((Object e) {
+    debugPrint('NotificationCenterService.init failed: $e');
+  });
+  SecurityActivityService.instance.init().catchError((Object e) {
+    debugPrint('SecurityActivityService.init failed: $e');
   });
 }
 

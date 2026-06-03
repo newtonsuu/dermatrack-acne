@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/nav_profile_icon.dart';
 import 'calendar_screen.dart';
 import 'camera_screen.dart';
 import 'dashboard_screen.dart';
@@ -39,25 +40,27 @@ class _HomeShellState extends State<HomeShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (i) => setState(() => _currentIndex = i),
-        destinations: const [
-          NavigationDestination(
+        destinations: [
+          const NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
             selectedIcon: Icon(Icons.dashboard),
             label: 'Home',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.camera_alt_outlined),
             selectedIcon: Icon(Icons.camera_alt),
             label: 'Scan',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.calendar_month_outlined),
             selectedIcon: Icon(Icons.calendar_month),
             label: 'Calendar',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
+          // Profile tab shows the user's photo (or initials) instead of a
+          // generic person glyph.
+          const NavigationDestination(
+            icon: NavProfileIcon(selected: false),
+            selectedIcon: NavProfileIcon(selected: true),
             label: 'Profile',
           ),
         ],

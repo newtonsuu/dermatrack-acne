@@ -6,7 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/face_detection_service.dart';
 import '../services/scan_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/user_avatar_action.dart';
+import '../widgets/settings_gear_action.dart';
 import 'scan_detail_screen.dart';
 
 /// Camera screen for capturing a selfie used in a skin scan.
@@ -187,7 +187,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 onPressed: () => Navigator.of(context).pop(),
               )
             : null,
-        actions: const [UserAvatarAction()],
+        actions: const [SettingsGearAction()],
       ),
       body: SafeArea(
         child: Padding(

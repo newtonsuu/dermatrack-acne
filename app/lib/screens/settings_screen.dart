@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../app_info.dart';
+import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import 'change_password_screen.dart';
 import 'edit_profile_screen.dart';
+import 'help_support_screen.dart';
+import 'notification_settings_screen.dart';
+import 'privacy_data_screen.dart';
+import 'scan_reminder_screen.dart';
 
 /// Settings screen — reached from the user avatar menu in the top-right of
 /// each main tab's AppBar.
@@ -35,10 +41,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) setState(() {});
   }
 
-  void _comingSoon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Coming soon')),
+  void _open(Widget screen) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+  }
+
+  Future<void> _confirmSignOut() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: const Text('You can sign back in anytime.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
     );
+    if (ok == true) {
+      await AuthService.instance.signOut();
+      // AuthGate swaps to the welcome screen; pop settings if still mounted.
+      if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+    }
   }
 
   @override
@@ -90,13 +119,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _SettingsTile(
                 icon: Icons.notifications_outlined,
                 title: 'Notifications',
-                onTap: _comingSoon,
+                onTap: () => _open(const NotificationSettingsScreen()),
               ),
               const _Divider(),
               _SettingsTile(
                 icon: Icons.schedule,
                 title: 'Scan reminders',
-                onTap: _comingSoon,
+                onTap: () => _open(const ScanReminderScreen()),
               ),
             ],
           ),
@@ -108,23 +137,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _SettingsTile(
                 icon: Icons.privacy_tip_outlined,
                 title: 'Privacy & data',
-                onTap: _comingSoon,
+                onTap: () => _open(const PrivacyDataScreen()),
               ),
               const _Divider(),
               _SettingsTile(
                 icon: Icons.help_outline,
                 title: 'Help & support',
-                onTap: _comingSoon,
+                onTap: () => _open(const HelpSupportScreen()),
               ),
               const _Divider(),
               _SettingsTile(
                 icon: Icons.info_outline,
                 title: 'App version',
                 trailing: Text(
-                  '0.1.0',
+                  kAppVersion,
                   style: TextStyle(color: AppTheme.textSecondary(context)),
                 ),
                 onTap: null,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _SettingsCard(
+            children: [
+              _SettingsTile(
+                icon: Icons.logout,
+                title: 'Sign out',
+                iconColor: Colors.red.shade600,
+                titleColor: Colors.red.shade600,
+                onTap: _confirmSignOut,
               ),
             ],
           ),
@@ -258,22 +299,26 @@ class _SettingsTile extends StatelessWidget {
     required this.title,
     this.trailing,
     this.onTap,
+    this.iconColor,
+    this.titleColor,
   });
 
   final IconData icon;
   final String title;
   final Widget? trailing;
   final VoidCallback? onTap;
+  final Color? iconColor;
+  final Color? titleColor;
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
       onTap: onTap,
-      leading: Icon(icon, color: AppTheme.primary),
+      leading: Icon(icon, color: iconColor ?? AppTheme.primary),
       title: Text(
         title,
         style: TextStyle(
-          color: AppTheme.textPrimary(context),
+          color: titleColor ?? AppTheme.textPrimary(context),
           fontWeight: FontWeight.w500,
         ),
       ),
