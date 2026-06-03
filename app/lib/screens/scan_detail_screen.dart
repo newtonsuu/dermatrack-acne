@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/acne_references.dart';
+import '../data/severity_guidance.dart';
 import '../models/acne_reference.dart';
 import '../models/scan.dart';
 import '../services/scan_service.dart';
@@ -196,6 +197,13 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
               const _DisclaimerBanner(),
               const SizedBox(height: 16),
               _SummaryCard(scan: scan),
+              const SizedBox(height: 16),
+              _GuidanceCard(
+                guidance: SeverityGuidance.fromScan(
+                  cookGrade: scan.cookGrade,
+                  severityLabel: scan.severityLabel,
+                ),
+              ),
               if (scan.doctorNote != null &&
                   scan.doctorNote!.trim().isNotEmpty) ...[
                 const SizedBox(height: 16),
@@ -373,6 +381,18 @@ class _SeverityBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Lead with the coarse, patient-facing tier ("Moderate") per the
+    // monitoring product spec; keep the precise pipeline label + Cook grade as
+    // secondary detail so clinical nuance isn't lost.
+    final tier = SeverityGuidance.tierFor(
+      cookGrade: scan.cookGrade,
+      severityLabel: scan.severityLabel,
+    );
+    final tierTitle =
+        tier == SeverityTier.clear ? 'Clear' : '${tier.label} acne severity';
+    final showPreciseLabel =
+        scan.severityLabel.toLowerCase() != tier.label.toLowerCase() &&
+            scan.cookGrade >= 0;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
@@ -395,13 +415,26 @@ class _SeverityBadge extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              scan.severityLabel,
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary(context),
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tierTitle,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textPrimary(context),
+                  ),
+                ),
+                if (showPreciseLabel)
+                  Text(
+                    'Detected level: ${scan.severityLabel}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary(context),
+                    ),
+                  ),
+              ],
             ),
           ),
           Text(
@@ -412,6 +445,101 @@ class _SeverityBadge extends StatelessWidget {
               color: AppTheme.textSecondary(context),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Severity-keyed guidance + recommendation card. Supportive and
+/// non-prescriptive (DermaTrack is monitoring support, not diagnosis); for
+/// moderate/severe results it nudges toward a dermatologist review.
+class _GuidanceCard extends StatelessWidget {
+  const _GuidanceCard({required this.guidance});
+  final SeverityGuidance guidance;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: guidance.color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: guidance.color.withValues(alpha: 0.35)),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.lightbulb_outline, size: 18, color: guidance.color),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  guidance.headline,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textPrimary(context),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            guidance.body,
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(height: 1.4),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.check_circle_outline,
+                  size: 16, color: AppTheme.textSecondary(context)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  guidance.recommendation,
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.4,
+                    color: AppTheme.textSecondary(context),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (guidance.urgeDoctorReview) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: guidance.color.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.medical_services_outlined,
+                      size: 16, color: guidance.color),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Consider a dermatologist review for this level.',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary(context),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

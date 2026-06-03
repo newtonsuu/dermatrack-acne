@@ -14,12 +14,14 @@ enum ScanRegion {
   leftCheek('left_cheek', 'Left cheek'),
   rightCheek('right_cheek', 'Right cheek'),
   chin('chin', 'Chin'),
+  nose('nose', 'Nose'),
   fullFace('full_face', 'Full face');
 
   const ScanRegion(this.wireName, this.label);
 
   /// SQL string written to `public.scans.region`. Stable forever — don't
-  /// rename without a migration.
+  /// rename without a migration. Mirrors the CHECK constraint
+  /// `scans_region_valid` (see 0004_scan_regions.sql + 0010_scan_region_nose.sql).
   final String wireName;
 
   /// Human-readable label for the scan detail screen, the calendar
@@ -37,6 +39,21 @@ enum ScanRegion {
     return ScanRegion.fullFace;
   }
 }
+
+/// Regions captured, in order, by the guided per-region scan session.
+///
+/// This is the **supplementary detailed scan**: it walks the five facial
+/// zones — forehead, left cheek, right cheek, chin, nose — and the session
+/// completion screen synthesizes an overall facial severity from them. The
+/// standalone full-face capture is the separate **quick single scan**, which
+/// is why [ScanRegion.fullFace] is intentionally not in this list.
+const List<ScanRegion> kScanSessionRegions = [
+  ScanRegion.forehead,
+  ScanRegion.leftCheek,
+  ScanRegion.rightCheek,
+  ScanRegion.chin,
+  ScanRegion.nose,
+];
 
 /// A single skin scan record.
 ///
