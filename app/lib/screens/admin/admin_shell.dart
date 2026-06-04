@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../services/admin_service.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/role_switcher.dart';
 import '../../widgets/settings_widgets.dart';
 import 'admin_chats_screen.dart';
 import 'break_glass_screen.dart';
@@ -56,6 +57,12 @@ class _AdminShellState extends State<AdminShell> {
       appBar: AppBar(
         title: Text(titles[_index]),
         actions: [
+          if (AuthService.instance.canSwitchRoles)
+            IconButton(
+              tooltip: 'Switch role',
+              icon: const Icon(Icons.swap_horiz),
+              onPressed: () => showRoleSwitcher(context),
+            ),
           IconButton(
             tooltip: 'Refresh',
             icon: const Icon(Icons.refresh),
