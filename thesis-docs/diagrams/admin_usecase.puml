@@ -1,0 +1,58 @@
+@startuml admin_usecase
+' DermaTrack — Admin use cases (screens/admin/* + services/admin_service).
+' ONLY what is implemented. NOT implemented (shown as a note, not use cases):
+' educational-content / FAQ / notification-template / support-ticket mgmt.
+left to right direction
+skinparam actorStyle awesome
+actor "Admin" as A
+actor "Super admin\n(review)" as SA
+
+rectangle "Admin capabilities" {
+  usecase "Log in / Sign out" as C1
+  usecase "System monitoring overview\n(user/role counts, deactivated,\nactive break-glass)" as C2
+  usecase "View / search users" as C3
+  usecase "Change user role\n(patient/doctor/admin)" as C4
+  usecase "Activate / deactivate account" as C5
+  usecase "View audit log" as C6
+  usecase "Open break-glass session\n(patient, reason, 15/30/60 min)" as C7
+  usecase "View patient records under break-glass\n(read-only, time-limited)" as C8
+  usecase "Revoke break-glass session" as C9
+  usecase "Moderate chats\n(view all threads)" as C11
+  usecase "Remove a message" as C12
+  usecase "Restrict / unrestrict\nuser messaging" as C13
+  usecase "Write audit entry" as C10
+}
+
+A --> C1
+A --> C2
+A --> C3
+A --> C4
+A --> C5
+A --> C6
+A --> C7
+A --> C8
+A --> C9
+A --> C11
+A --> C12
+A --> C13
+
+C4 .> C10 : <<include>>
+C12 .> C10 : <<include>>
+C13 .> C10 : <<include>>
+C5 .> C10 : <<include>>
+C7 .> C10 : <<include>>
+C7 .> C8 : <<include>>
+C9 .> C10 : <<include>>
+C10 --> SA : reviewed by
+
+note bottom of C8
+  Break-glass grants read-only access to the patient's
+  scans + patient_histories ROWS during an active session
+  (RLS has_active_break_glass). Scan IMAGES are NOT exposed
+  (no break-glass storage policy).
+end note
+note right of A
+  NOT in code (excluded on purpose): educational-content,
+  FAQ, notification-template, and support-ticket management.
+end note
+@enduml

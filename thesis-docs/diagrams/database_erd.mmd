@@ -1,0 +1,117 @@
+%% DermaTrack ERD — Mermaid version (renders in GitHub, VS Code, mermaid.live)
+%% Derived from supabase/full_schema.sql (migrations 0001-0011).
+erDiagram
+    auth_users ||--|| profiles : "1:1"
+    auth_users ||--o{ scans : owns
+    auth_users ||--|| patient_histories : "1:1"
+    auth_users ||--|| treatment_plans : "1:1"
+    auth_users ||--o{ prescriptions : receives
+    auth_users ||--o{ messages : "patient/sender"
+    auth_users ||--o{ audit_log : actor
+    auth_users ||--o{ break_glass_sessions : "admin/target"
+    scans ||--o| doctor_notes : "0..1"
+
+    auth_users {
+        uuid id PK
+        text email
+        text encrypted_password
+    }
+    profiles {
+        uuid id PK_FK
+        text username "unique, >=3"
+        text display_name
+        text profile_picture_path
+        text role "patient|doctor|admin"
+        boolean is_active
+        boolean shared_with_doctor
+        boolean messaging_restricted
+        boolean can_switch_roles
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    scans {
+        uuid id PK
+        uuid user_id FK
+        timestamptz taken_at
+        text image_path
+        integer cook_grade "-1..8"
+        text severity_label
+        integer inflammatory_count
+        integer non_inflammatory_count
+        integer post_acne_count
+        jsonb lesions
+        jsonb source_metadata
+        text notes
+        text region
+        uuid session_id
+        timestamptz created_at
+    }
+    doctor_notes {
+        uuid scan_id PK_FK
+        text note
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    patient_histories {
+        uuid user_id PK_FK
+        text full_name
+        text address
+        date birthday
+        text sex
+        text occupation
+        text contact_no
+        text_array past_medical_conditions
+        text allergies_detail
+        text_array family_history_conditions
+        numeric smoker_pack_years
+        boolean uses_prohibited_drugs
+        boolean is_alcohol_drinker
+        text current_medications
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    treatment_plans {
+        uuid user_id PK_FK
+        text plan
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    prescriptions {
+        uuid id PK
+        uuid user_id FK
+        text body
+        text_array image_paths
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    messages {
+        uuid id PK
+        uuid patient_id FK
+        uuid sender_id FK
+        text sender_role "patient|doctor"
+        text body
+        timestamptz edited_at
+        timestamptz deleted_at
+        boolean removed_by_admin
+        timestamptz created_at
+    }
+    audit_log {
+        uuid id PK
+        uuid actor_id FK
+        text actor_role
+        text action
+        uuid target_user_id
+        text detail
+        timestamptz created_at
+    }
+    break_glass_sessions {
+        uuid id PK
+        uuid admin_id FK
+        uuid target_patient_id FK
+        text reason
+        integer duration_minutes "15|30|60"
+        boolean read_only
+        timestamptz granted_at
+        timestamptz expires_at
+        boolean revoked
+    }

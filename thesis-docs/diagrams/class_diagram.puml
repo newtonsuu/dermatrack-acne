@@ -1,0 +1,110 @@
+@startuml class_diagram
+' DermaTrack — Domain model + key services (from app/lib/models & app/lib/services).
+' Trimmed to the main classes; data-layer services are ChangeNotifier singletons.
+skinparam classAttributeIconSize 0
+left to right direction
+
+package "Models" {
+  enum ScanRegion { forehead\nleftCheek\nrightCheek\nchin\nnose\nfullFace }
+  enum SeverityTier { clear\nmild\nmoderate\nsevere\n--\n+rank : int }
+  enum UserRole { patient\ndoctor\nadmin }
+  enum NotificationKind { dailyReminder\nmissedScan\ndoctorReview\nseverityChange\nfollowUp\nsecurity\nannouncement }
+
+  class Scan {
+    +id : String
+    +takenAt : DateTime
+    +imagePath : String
+    +cookGrade : int  ' -1..8
+    +severityLabel : String
+    +inflammatoryCount : int
+    +nonInflammatoryCount : int
+    +postAcneCount : int
+    +region : ScanRegion
+    +sessionId : String?
+    +doctorNote : String?
+    +severityColor : Color
+    +{static} fromRow(row) : Scan
+  }
+  class Lesion {
+    +className : String
+    +bucket : String
+    +confidence : double
+    +bbox : BBox
+  }
+  class SeverityGuidance {
+    +tier : SeverityTier
+    +headline : String
+    +body : String
+    +recommendation : String
+    +urgeDoctorReview : bool
+    +{static} tierFor(cookGrade, label) : SeverityTier
+    +{static} forTier(tier) : SeverityGuidance
+    +{static} fromScan(...) : SeverityGuidance
+  }
+  class AppUser { +email : String\n+username : String\n+displayName : String }
+  class AppNotification {
+    +id : String
+    +kind : NotificationKind
+    +title : String
+    +body : String
+    +timestamp : DateTime
+    +read : bool
+  }
+  class Prescription { +id\n+userId\n+body\n+imagePaths : List<String>\n+createdAt }
+  class Message { +id\n+patientId\n+senderId\n+senderRole\n+body\n+createdAt }
+  class PatientHistory { +userId\n+fullName\n+birthday\n+sex\n+pastMedicalConditions : List\n+... }
+  class TreatmentPlan { +userId\n+plan\n+updatedAt }
+  class AdminUser { +id\n+username\n+role : UserRole\n+isActive : bool }
+  class AuditEntry { +id\n+actorRole\n+action\n+targetUserId?\n+createdAt }
+  class BreakGlassSession {
+    +id\n+adminId\n+targetPatientId\n+reason
+    +durationMinutes : int\n+expiresAt : DateTime\n+revoked : bool
+    +isActive : bool\n+remaining : Duration
+  }
+}
+
+package "Services (ChangeNotifier singletons)" {
+  class AuthService {
+    +currentUser : AppUser?
+    +role : UserRole
+    +isDoctor : bool
+    +isAdmin : bool
+    +signIn() / signUp() / signOut()
+  }
+  class ScanService {
+    +scans : List<Scan>
+    +submitScan(bytes, region, sessionId) : Scan
+    +loadScans() / deleteScan(id)
+  }
+  class DoctorService {
+    +loadPatients()  ' consent-gated
+    +loadPatientScans(id)
+    +upsertTreatmentPlan(id, plan)
+  }
+  class AdminService {
+    +users : List<AdminUser>
+    +audit : List<AuditEntry>
+    +setRole() / setActive()
+    +openBreakGlass() / revokeBreakGlass()
+  }
+  class NotificationCenterService {
+    +notifications : List<AppNotification>
+    +unreadCount : int
+    +refresh() / markAllRead()
+  }
+}
+
+Scan "1" *-- "many" Lesion
+Scan ..> ScanRegion
+Scan ..> SeverityGuidance : graded by
+SeverityGuidance ..> SeverityTier
+AuthService --> AppUser
+AuthService ..> UserRole
+ScanService "1" o-- "many" Scan
+AdminService "1" o-- "many" AdminUser
+AdminService "1" o-- "many" AuditEntry
+AdminService "1" o-- "many" BreakGlassSession
+NotificationCenterService "1" o-- "many" AppNotification
+AppNotification ..> NotificationKind
+DoctorService ..> TreatmentPlan
+@enduml

@@ -1,0 +1,150 @@
+@startuml database_erd
+' DermaTrack — Entity-Relationship Diagram
+' Derived verbatim from supabase/full_schema.sql (migrations 0001-0011).
+' auth.users is managed by Supabase Auth; the 3 storage buckets are shown as a note.
+hide circle
+skinparam linetype ortho
+
+entity "auth.users" as users {
+  * id : uuid <<PK>>
+  --
+  email : text
+  encrypted_password : text
+}
+
+entity "profiles" as profiles {
+  * id : uuid <<PK,FK>>
+  --
+  username : text <<unique, >=3>>
+  display_name : text
+  profile_picture_path : text
+  role : text <<patient|doctor|admin>>
+  is_active : boolean
+  shared_with_doctor : boolean
+  messaging_restricted : boolean
+  can_switch_roles : boolean
+  created_at : timestamptz
+  updated_at : timestamptz
+}
+
+entity "scans" as scans {
+  * id : uuid <<PK>>
+  --
+  * user_id : uuid <<FK>>
+  taken_at : timestamptz
+  image_path : text
+  cook_grade : integer <<-1..8>>
+  severity_label : text
+  inflammatory_count : integer
+  non_inflammatory_count : integer
+  post_acne_count : integer
+  lesions : jsonb
+  source_metadata : jsonb
+  notes : text
+  region : text
+  session_id : uuid
+  created_at : timestamptz
+}
+
+entity "doctor_notes" as dnotes {
+  * scan_id : uuid <<PK,FK>>
+  --
+  note : text
+  created_at : timestamptz
+  updated_at : timestamptz
+}
+
+entity "patient_histories" as phist {
+  * user_id : uuid <<PK,FK>>
+  --
+  full_name : text
+  address : text
+  birthday : date
+  sex : text
+  occupation : text
+  contact_no : text
+  past_medical_conditions : text[]
+  allergies_detail : text
+  family_history_conditions : text[]
+  smoker_pack_years : numeric
+  uses_prohibited_drugs : boolean
+  is_alcohol_drinker : boolean
+  current_medications : text
+  created_at : timestamptz
+  updated_at : timestamptz
+}
+
+entity "treatment_plans" as tplan {
+  * user_id : uuid <<PK,FK>>
+  --
+  plan : text
+  created_at : timestamptz
+  updated_at : timestamptz
+}
+
+entity "prescriptions" as rx {
+  * id : uuid <<PK>>
+  --
+  * user_id : uuid <<FK>>
+  body : text
+  image_paths : text[]
+  created_at : timestamptz
+  updated_at : timestamptz
+}
+
+entity "messages" as msg {
+  * id : uuid <<PK>>
+  --
+  * patient_id : uuid <<FK>>
+  * sender_id : uuid <<FK>>
+  sender_role : text <<patient|doctor>>
+  body : text
+  edited_at : timestamptz
+  deleted_at : timestamptz
+  removed_by_admin : boolean
+  created_at : timestamptz
+}
+
+entity "audit_log" as audit {
+  * id : uuid <<PK>>
+  --
+  actor_id : uuid <<FK>>
+  actor_role : text
+  action : text
+  target_user_id : uuid
+  detail : text
+  created_at : timestamptz
+}
+
+entity "break_glass_sessions" as bg {
+  * id : uuid <<PK>>
+  --
+  * admin_id : uuid <<FK>>
+  * target_patient_id : uuid <<FK>>
+  reason : text
+  duration_minutes : integer <<15|30|60>>
+  read_only : boolean
+  granted_at : timestamptz
+  expires_at : timestamptz
+  revoked : boolean
+}
+
+users ||--|| profiles : "1:1"
+users ||--o{ scans : "owns"
+users ||--|| phist : "1:1"
+users ||--|| tplan : "1:1"
+users ||--o{ rx : "receives"
+users ||--o{ msg : "patient thread"
+users ||--o{ msg : "sends"
+users ||--o{ audit : "actor"
+users ||--o{ bg : "admin"
+users ||--o{ bg : "target"
+scans ||--o| dnotes : "0..1 note"
+
+note bottom
+  Private Storage buckets (not relational tables):
+  profile-pictures, scan-images, prescription-images.
+  profiles.profile_picture_path, scans.image_path,
+  prescriptions.image_paths reference objects in them.
+end note
+@enduml
