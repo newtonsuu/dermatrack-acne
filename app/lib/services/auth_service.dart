@@ -80,6 +80,7 @@ class AuthService extends ChangeNotifier {
   UserRole _role = UserRole.patient;
   bool _roleResolved = false;
   bool _accountActive = true;
+  bool _canSwitchRoles = false;
 
   /// The signed-in user's role. Defaults to patient until [roleResolved].
   UserRole get role => _role;
@@ -91,6 +92,10 @@ class AuthService extends ChangeNotifier {
 
   /// False when an admin has deactivated this account.
   bool get accountActive => _accountActive;
+
+  /// True for designated demo/dev accounts that may switch their own role
+  /// between patient/doctor/admin (see [switchRole]).
+  bool get canSwitchRoles => _canSwitchRoles;
 
   /// True when the signed-in user has the doctor role. The auth gate in
   /// main.dart uses this to route to DoctorShell.
@@ -155,6 +160,7 @@ class AuthService extends ChangeNotifier {
     if (c == null || uid == null) {
       _role = UserRole.patient;
       _accountActive = true;
+      _canSwitchRoles = false;
       _roleResolved = true;
       notifyListeners();
       return;
@@ -162,18 +168,33 @@ class AuthService extends ChangeNotifier {
     try {
       final row = await c
           .from('profiles')
-          .select('role, is_active')
+          .select('role, is_active, can_switch_roles')
           .eq('id', uid)
           .maybeSingle();
       _role = userRoleFromString(row?['role'] as String?);
       _accountActive = (row?['is_active'] as bool?) ?? true;
+      _canSwitchRoles = (row?['can_switch_roles'] as bool?) ?? false;
     } catch (e) {
       debugPrint('AuthService._loadRole failed: $e');
       _role = UserRole.patient;
       _accountActive = true;
+      _canSwitchRoles = false;
     }
     _roleResolved = true;
     notifyListeners();
+  }
+
+  /// Switches the signed-in account's active role (only works for accounts
+  /// flagged `can_switch_roles`; the DB trigger enforces it). Updates the
+  /// `profiles.role`, re-resolves, and notifies so the AuthGate re-routes to
+  /// the matching shell.
+  Future<void> switchRole(UserRole target) async {
+    final c = _clientOrNull;
+    final uid = c?.auth.currentUser?.id;
+    if (c == null || uid == null) return;
+    if (target == _role) return;
+    await c.from('profiles').update({'role': target.name}).eq('id', uid);
+    await _loadRole();
   }
 
   /// Signs the user in. Returns null on success, or an [AuthError] with a

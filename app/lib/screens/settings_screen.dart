@@ -4,6 +4,7 @@ import '../app_info.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
+import '../widgets/role_switcher.dart';
 import 'change_password_screen.dart';
 import 'edit_profile_screen.dart';
 import 'help_support_screen.dart';
@@ -157,6 +158,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ],
           ),
+          if (AuthService.instance.canSwitchRoles) ...[
+            const SizedBox(height: 20),
+            const _SectionLabel('Developer'),
+            const SizedBox(height: 8),
+            _SettingsCard(
+              children: [
+                _SettingsTile(
+                  icon: Icons.swap_horiz,
+                  title: 'Switch role (Patient / Doctor / Admin)',
+                  onTap: () => showRoleSwitcher(context),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 20),
           _SettingsCard(
             children: [
