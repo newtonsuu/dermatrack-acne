@@ -1,0 +1,43 @@
+@startuml seq_authentication
+' DermaTrack — Authentication & role routing
+' From welcome_screen -> login_screen -> auth_service -> Supabase Auth -> AuthGate (main.dart)
+autonumber
+actor User
+participant "WelcomeScreen\n(Login as)" as W
+participant "LoginScreen" as L
+participant "AuthService" as AS
+participant "Supabase Auth\n(GoTrue)" as SB
+database "profiles\n(role,is_active)" as DB
+participant "AuthGate\n(main.dart)" as GATE
+
+User -> W : choose Patient / Doctor / Admin
+W -> L : open themed login
+User -> L : email + password
+L -> AS : signIn(email, password)
+
+alt locked out (>=5 failed attempts)
+  AS --> L : AuthError "Too many attempts (60s)"
+else allowed
+  AS -> SB : signInWithPassword()
+  alt invalid credentials
+    SB --> AS : AuthException
+    AS -> AS : failedAttempts++ (lock at 5)
+    AS --> L : AuthError (field hint)
+  else success
+    SB --> AS : session (JWT)
+    AS -> SB : record sign-in (security activity)
+    AS -> DB : select role, is_active where id = uid
+    DB --> AS : role, is_active
+    AS --> GATE : notifyListeners (roleResolved)
+    alt not is_active
+      GATE -> User : "Account deactivated" screen
+    else admin
+      GATE -> User : AdminShell
+    else doctor
+      GATE -> User : DoctorShell
+    else patient
+      GATE -> User : HomeShell
+    end
+  end
+end
+@enduml

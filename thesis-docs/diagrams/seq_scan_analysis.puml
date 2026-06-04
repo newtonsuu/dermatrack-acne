@@ -1,0 +1,39 @@
+@startuml seq_scan_analysis
+' DermaTrack — Scan capture -> analysis -> severity result
+' (the "patient uploads skin image -> graded" flow; there is no human "diagnosis").
+' From camera_screen / scan_session -> scan_service -> Storage -> analyze-scan edge fn
+' -> Roboflow + Hugging Face -> scans row -> scan_detail_screen.
+autonumber
+actor Patient
+participant "Camera /\nScanSession" as UI
+participant "ScanService" as SS
+participant "Supabase Storage\n(scan-images)" as ST
+participant "analyze-scan\n(Edge Function)" as EF
+participant "Roboflow" as RB
+participant "Hugging Face" as HF
+database "scans" as DB
+participant "ScanDetailScreen" as RES
+
+Patient -> UI : capture / pick image (region)
+UI -> SS : submitScan(bytes, region, sessionId)
+SS -> ST : upload {user_id}/{scan_id}.jpg
+ST --> SS : ok
+SS -> EF : invoke(scan_id, image_path, region, face_bbox)
+EF -> RB : detect lesions
+RB --> EF : predictions (classes, bboxes)
+EF -> HF : classify severity (skintelligent)
+HF --> EF : level / confidence
+EF -> EF : combine -> Cook grade + severity_label
+EF -> DB : insert scans row (counts, lesions, metadata)
+DB --> EF : row
+EF --> SS : { scan }
+SS --> UI : Scan (prepended to in-memory list)
+UI -> RES : open result
+RES -> RES : SeverityGuidance.fromScan() -> Mild/Moderate/Severe + guidance
+RES --> Patient : severity + guidance + non-diagnostic disclaimer
+
+note over EF
+  20s AbortController around HF; 45s overall invoke timeout.
+  Soft-fails to Roboflow-only if HF is unavailable.
+end note
+@enduml

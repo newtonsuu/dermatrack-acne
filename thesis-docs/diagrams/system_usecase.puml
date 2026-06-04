@@ -1,0 +1,101 @@
+@startuml system_usecase
+' DermaTrack — System-wide use case diagram
+' Derived from app/lib/screens + services and supabase RLS. Only implemented
+' capabilities are shown. DermaTrack has no appointments/diagnosis/payment.
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+
+actor "Patient" as P
+actor "Doctor\n(Dermatologist)" as D
+actor "Admin" as A
+actor "Roboflow\n(lesion detection)" as RB
+actor "Hugging Face\n(severity classifier)" as HF
+
+rectangle "DermaTrack" {
+
+  ' ----- Shared authentication -----
+  usecase "Authenticate\n(Login as role)" as UC_AUTH
+  usecase "Resolve role\n(patient/doctor/admin)" as UC_ROLE
+  usecase "Reset password" as UC_RESET
+  usecase "Account lockout\n(5 failed attempts)" as UC_LOCK
+  UC_AUTH .> UC_ROLE : <<include>>
+  UC_AUTH .> UC_LOCK : <<extend>>
+
+  ' ----- Patient -----
+  usecase "Register (patient)" as UC_REG
+  usecase "Quick full-face scan" as UC_QSCAN
+  usecase "Per-region scan session" as UC_RSCAN
+  usecase "Analyze scan\n(Cook grade + severity)" as UC_ANALYZE
+  usecase "View result\n(Mild/Moderate/Severe + guidance)" as UC_RESULT
+  usecase "Overall facial summary" as UC_SUMMARY
+  usecase "View history / calendar / trend" as UC_HISTORY
+  usecase "Manage clinical intake" as UC_INTAKE
+  usecase "Grant/revoke doctor consent" as UC_CONSENT
+  usecase "Configure notifications & reminders" as UC_NOTIF
+  usecase "Privacy & data\n(export/delete/request deletion)" as UC_PRIV
+  usecase "Chat with dermatologist" as UC_CHAT
+
+  ' ----- Doctor -----
+  usecase "View consenting patients" as UC_PLIST
+  usecase "Review patient scans & history" as UC_REVIEW
+  usecase "Compare scans (progression)" as UC_COMPARE
+  usecase "Write doctor note" as UC_NOTE
+  usecase "Set treatment plan" as UC_PLAN
+  usecase "Issue prescription" as UC_RX
+  usecase "Export PDF report" as UC_PDF
+
+  ' ----- Admin -----
+  usecase "System monitoring overview" as UC_MON
+  usecase "Manage users & roles" as UC_USERS
+  usecase "Activate/deactivate account" as UC_ACT
+  usecase "View audit log" as UC_AUDIT
+  usecase "Break-glass emergency access" as UC_BG
+  usecase "Log to audit trail" as UC_LOG
+}
+
+' Shared
+P --> UC_AUTH
+D --> UC_AUTH
+A --> UC_AUTH
+P --> UC_RESET
+
+' Patient
+P --> UC_REG
+P --> UC_QSCAN
+P --> UC_RSCAN
+P --> UC_HISTORY
+P --> UC_INTAKE
+P --> UC_CONSENT
+P --> UC_NOTIF
+P --> UC_PRIV
+P --> UC_CHAT
+UC_QSCAN .> UC_ANALYZE : <<include>>
+UC_RSCAN .> UC_ANALYZE : <<include>>
+UC_ANALYZE .> UC_RESULT : <<include>>
+UC_RSCAN .> UC_SUMMARY : <<include>>
+UC_ANALYZE --> RB
+UC_ANALYZE --> HF
+
+' Doctor (consent-gated)
+D --> UC_PLIST
+D --> UC_REVIEW
+D --> UC_COMPARE
+D --> UC_NOTE
+D --> UC_PLAN
+D --> UC_RX
+D --> UC_PDF
+D --> UC_CHAT
+UC_REVIEW ..> UC_CONSENT : requires consent
+UC_RX .> UC_NOTE : <<extend>>
+
+' Admin
+A --> UC_MON
+A --> UC_USERS
+A --> UC_ACT
+A --> UC_AUDIT
+A --> UC_BG
+UC_USERS .> UC_ACT : <<extend>>
+UC_BG .> UC_LOG : <<include>>
+UC_ACT .> UC_LOG : <<include>>
+@enduml

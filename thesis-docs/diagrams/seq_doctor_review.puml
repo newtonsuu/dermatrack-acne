@@ -1,0 +1,32 @@
+@startuml seq_doctor_review
+' DermaTrack — Doctor reviews a consenting patient and leaves a note
+' From doctor_shell -> doctor_service -> Supabase (RLS consent-gated) -> doctor_notes
+autonumber
+actor Doctor
+participant "DoctorPatientList" as DL
+participant "DoctorService" as DS
+database "profiles / scans /\ndoctor_notes" as DB
+participant "Storage\n(scan-images)" as ST
+participant "DoctorScanDetail" as DD
+
+Doctor -> DL : open patient list
+DL -> DS : loadPatients()
+DS -> DB : select profiles where shared_with_doctor = true
+note right of DB : RLS is_demo_doctor() AND consent\n=> only consenting patients returned
+DB --> DS : consenting patients
+DS --> DL : patient list (+ "needs review" flag)
+
+Doctor -> DL : select a patient
+DL -> DS : loadPatientScans(patientId)
+DS -> DB : select scans where user_id = patientId
+DS -> ST : createSignedUrl(image_path)  ' short-lived
+ST --> DS : signed URLs
+DS --> DD : scans
+
+Doctor -> DD : write / edit note
+DD -> DB : upsert doctor_notes (scan_id, note)
+note right of DB : RLS: doctor write allowed only\nfor consenting patients
+DB --> DD : ok
+== later ==
+DB --> Doctor : patient app shows "From your dermatologist" note
+@enduml

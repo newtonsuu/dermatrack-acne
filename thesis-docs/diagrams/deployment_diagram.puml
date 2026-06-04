@@ -1,0 +1,35 @@
+@startuml deployment_diagram
+' DermaTrack — Deployment topology
+skinparam node { BackgroundColor #FDF6E3 BorderColor black }
+
+node "Android device" {
+  artifact "DermaTrack APK\n(Flutter)" as APP
+}
+
+cloud "Supabase project\n(mqnoexkihwfmebalfobo)" {
+  node "Auth (GoTrue)" as AUTH
+  node "PostgreSQL + RLS" as PG
+  node "Storage\n(profile/scan/prescription buckets)" as STORE
+  node "Realtime" as RT
+  node "Edge runtime\n(analyze-scan)" as EF
+}
+
+cloud "Roboflow" { node "acne-detection-zukbx/4" as RB }
+cloud "Hugging Face" { node "skintelligent-acne Space" as HF }
+
+cloud "GitHub" {
+  node "Actions runner\n(flutter build apk)" as GA
+  artifact "Release APK assets" as REL
+}
+
+APP --> AUTH : HTTPS
+APP --> PG : HTTPS (PostgREST)
+APP --> STORE : HTTPS (signed URLs)
+APP --> RT : WSS
+APP --> EF : HTTPS invoke
+EF --> RB : HTTPS
+EF --> HF : HTTPS
+EF --> PG : write
+GA --> REL : publish on v* tag
+REL ..> APP : user installs
+@enduml

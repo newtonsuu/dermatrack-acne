@@ -1,0 +1,30 @@
+@startuml seq_chat
+' DermaTrack — Patient <-> Doctor messaging over Supabase Realtime
+' From chat_screen -> chat_service -> messages table + Realtime channel
+autonumber
+actor Patient
+participant "ChatScreen (P)" as CP
+participant "ChatService" as CS
+database "messages" as DB
+participant "Supabase\nRealtime" as RT
+participant "ChatScreen (D)" as CD
+actor Doctor
+
+CP -> CS : loadThread(patientId) + subscribe(patientId)
+CS -> DB : select messages where patient_id = patientId (RLS)
+DB --> CS : history
+CS -> RT : subscribe channel messages:patientId
+
+Patient -> CP : type + send
+CP -> CS : send(patientId, body)
+CS -> DB : insert (patient_id, sender_id, sender_role='patient', body)
+note right of DB : RLS: patient writes own thread;\ndoctor writes only consenting threads
+DB -> RT : row inserted (broadcast)
+RT --> CD : new message event
+CD --> Doctor : message appears live
+Doctor -> CD : reply (sender_role='doctor')
+CD -> CS : send(...)
+CS -> DB : insert
+DB -> RT : broadcast
+RT --> CP : reply appears live
+@enduml
