@@ -4,6 +4,7 @@ import '../../services/admin_service.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/settings_widgets.dart';
+import 'admin_chats_screen.dart';
 import 'break_glass_screen.dart';
 
 /// Top-level shell for the admin role. Hosts Overview, Users, and Audit tabs;
@@ -38,8 +39,18 @@ class _AdminShellState extends State<AdminShell> {
 
   @override
   Widget build(BuildContext context) {
-    const tabs = [_AdminOverviewTab(), _AdminUsersTab(), _AdminAuditTab()];
-    const titles = ['Admin console', 'User management', 'Audit log'];
+    const tabs = [
+      _AdminOverviewTab(),
+      _AdminUsersTab(),
+      AdminChatsTab(),
+      _AdminAuditTab(),
+    ];
+    const titles = [
+      'Admin console',
+      'User management',
+      'Chat moderation',
+      'Audit log',
+    ];
     return Scaffold(
       backgroundColor: AppTheme.background(context),
       appBar: AppBar(
@@ -73,6 +84,11 @@ class _AdminShellState extends State<AdminShell> {
             icon: Icon(Icons.people_outline),
             selectedIcon: Icon(Icons.people),
             label: 'Users',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.forum_outlined),
+            selectedIcon: Icon(Icons.forum),
+            label: 'Chats',
           ),
           NavigationDestination(
             icon: Icon(Icons.receipt_long_outlined),
@@ -349,6 +365,23 @@ class _ManageUserSheetState extends State<_ManageUserSheet> {
                   foregroundColor: u.isActive ? const Color(0xFFE53935) : null,
                 ),
               ),
+            if (!widget.isSelf) ...[
+              const SizedBox(height: 8),
+              FilledButton.tonalIcon(
+                onPressed: _busy
+                    ? null
+                    : () => _run(
+                        () => AdminService.instance
+                            .setMessagingRestricted(u, !u.messagingRestricted),
+                        u.messagingRestricted
+                            ? 'Messaging unrestricted.'
+                            : 'Messaging restricted.'),
+                icon: Icon(u.messagingRestricted ? Icons.lock_open : Icons.block),
+                label: Text(u.messagingRestricted
+                    ? 'Unrestrict messaging'
+                    : 'Restrict messaging'),
+              ),
+            ],
             if (u.role == UserRole.patient) ...[
               const SizedBox(height: 8),
               OutlinedButton.icon(

@@ -63,6 +63,102 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  void _showMessageActions(Message m) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('Edit'),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _editMessage(m);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.undo, color: Colors.red.shade600),
+              title: Text('Unsend',
+                  style: TextStyle(color: Colors.red.shade600)),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _unsendMessage(m);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _editMessage(Message m) async {
+    final controller = TextEditingController(text: m.body);
+    final newBody = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit message'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 5,
+          minLines: 1,
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+              child: const Text('Save')),
+        ],
+      ),
+    );
+    if (newBody == null || newBody.isEmpty || newBody == m.body) return;
+    try {
+      await ChatService.instance
+          .editMessage(patientId: widget.patientId, messageId: m.id, body: newBody);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text("Couldn't edit: $e")));
+      }
+    }
+  }
+
+  Future<void> _unsendMessage(Message m) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Unsend message?'),
+        content: const Text(
+            'This removes the message for everyone in the conversation.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade600),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Unsend'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ChatService.instance
+          .unsendMessage(patientId: widget.patientId, messageId: m.id);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text("Couldn't unsend: $e")));
+      }
+    }
+  }
+
   Future<void> _send() async {
     final text = _input.text.trim();
     if (text.isEmpty || _sending) return;
@@ -106,7 +202,13 @@ class _ChatScreenState extends State<ChatScreen> {
                         itemBuilder: (_, i) {
                           final m = messages[i];
                           final mine = m.senderId == uid;
-                          return _Bubble(message: m, mine: mine);
+                          return _Bubble(
+                            message: m,
+                            mine: mine,
+                            onLongPress: (mine && !m.isUnsent)
+                                ? () => _showMessageActions(m)
+                                : null,
+                          );
                         },
                       ),
           ),
@@ -122,50 +224,81 @@ class _ChatScreenState extends State<ChatScreen> {
 }
 
 class _Bubble extends StatelessWidget {
-  const _Bubble({required this.message, required this.mine});
+  const _Bubble({required this.message, required this.mine, this.onLongPress});
   final Message message;
   final bool mine;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
     final t = message.createdAt;
     final time = '${_2(t.hour)}:${_2(t.minute)}';
-    final bg = mine ? AppTheme.primary : Theme.of(context).cardColor;
-    final fg = mine ? Colors.white : AppTheme.textPrimary(context);
+    final unsent = message.isUnsent;
+    final bg = unsent
+        ? Theme.of(context).cardColor
+        : (mine ? AppTheme.primary : Theme.of(context).cardColor);
+    final fg = (mine && !unsent) ? Colors.white : AppTheme.textPrimary(context);
+
+    final tombstone = message.removedByAdmin
+        ? 'Message removed by a moderator'
+        : 'Message unsent';
+    final metaText = message.isEdited ? '$time · edited' : time;
+
     return Align(
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.76,
-        ),
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(14),
-            topRight: const Radius.circular(14),
-            bottomLeft: Radius.circular(mine ? 14 : 4),
-            bottomRight: Radius.circular(mine ? 4 : 14),
+      child: GestureDetector(
+        onLongPress: onLongPress,
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.76,
           ),
-          border: mine
-              ? null
-              : Border.all(color: AppTheme.textSecondary(context).withValues(alpha: 0.2)),
-        ),
-        child: Column(
-          crossAxisAlignment:
-              mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          children: [
-            Text(message.body, style: TextStyle(fontSize: 14, color: fg)),
-            const SizedBox(height: 2),
-            Text(
-              time,
-              style: TextStyle(
-                fontSize: 10,
-                color: fg.withValues(alpha: 0.7),
-              ),
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(14),
+              topRight: const Radius.circular(14),
+              bottomLeft: Radius.circular(mine ? 14 : 4),
+              bottomRight: Radius.circular(mine ? 4 : 14),
             ),
-          ],
+            border: (mine && !unsent)
+                ? null
+                : Border.all(
+                    color: AppTheme.textSecondary(context).withValues(alpha: 0.2)),
+          ),
+          child: Column(
+            crossAxisAlignment:
+                mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            children: [
+              if (unsent)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(message.removedByAdmin ? Icons.gavel : Icons.do_not_disturb_on_outlined,
+                        size: 14, color: AppTheme.textSecondary(context)),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        tombstone,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontStyle: FontStyle.italic,
+                          color: AppTheme.textSecondary(context),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Text(message.body, style: TextStyle(fontSize: 14, color: fg)),
+              const SizedBox(height: 2),
+              Text(
+                metaText,
+                style: TextStyle(fontSize: 10, color: fg.withValues(alpha: 0.7)),
+              ),
+            ],
+          ),
         ),
       ),
     );

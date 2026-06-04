@@ -73,28 +73,40 @@ class ChatService extends ChangeNotifier {
     }
   }
 
-  /// Subscribes to live inserts on [patientId]'s thread. Idempotent.
+  /// Subscribes to live inserts AND updates on [patientId]'s thread (updates
+  /// carry edits / unsends / moderator removals). Idempotent.
   void subscribe(String patientId) {
     if (_channels.containsKey(patientId)) return;
+    final filter = supa.PostgresChangeFilter(
+      type: supa.PostgresChangeFilterType.eq,
+      column: 'patient_id',
+      value: patientId,
+    );
+    void handle(supa.PostgresChangePayload payload) {
+      try {
+        _upsert(patientId, Message.fromRow(payload.newRecord));
+      } catch (e) {
+        debugPrint('ChatService realtime parse failed: $e');
+      }
+    }
+
     final channel = _client.channel('messages:$patientId');
-    channel.onPostgresChanges(
-      event: supa.PostgresChangeEvent.insert,
-      schema: 'public',
-      table: 'messages',
-      filter: supa.PostgresChangeFilter(
-        type: supa.PostgresChangeFilterType.eq,
-        column: 'patient_id',
-        value: patientId,
-      ),
-      callback: (payload) {
-        try {
-          final msg = Message.fromRow(payload.newRecord);
-          _appendIfNew(patientId, msg);
-        } catch (e) {
-          debugPrint('ChatService realtime parse failed: $e');
-        }
-      },
-    ).subscribe();
+    channel
+        .onPostgresChanges(
+          event: supa.PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'messages',
+          filter: filter,
+          callback: handle,
+        )
+        .onPostgresChanges(
+          event: supa.PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'messages',
+          filter: filter,
+          callback: handle,
+        )
+        .subscribe();
     _channels[patientId] = channel;
   }
 
@@ -105,10 +117,16 @@ class ChatService extends ChangeNotifier {
     if (ch != null) _client.removeChannel(ch);
   }
 
-  void _appendIfNew(String patientId, Message msg) {
+  /// Inserts the message, or replaces an existing one with the same id (used
+  /// for both new messages and edit/unsend/moderation updates).
+  void _upsert(String patientId, Message msg) {
     final list = List<Message>.from(_byThread[patientId] ?? const []);
-    if (list.any((m) => m.id == msg.id)) return; // dedupe (e.g. our own echo)
-    list.add(msg);
+    final idx = list.indexWhere((m) => m.id == msg.id);
+    if (idx >= 0) {
+      list[idx] = msg;
+    } else {
+      list.add(msg);
+    }
     list.sort((a, b) => a.createdAt.compareTo(b.createdAt));
     _byThread[patientId] = list;
     notifyListeners();
@@ -136,10 +154,55 @@ class ChatService extends ChangeNotifier {
           })
           .select()
           .single();
-      _appendIfNew(patientId, Message.fromRow(row.cast<String, dynamic>()));
+      _upsert(patientId, Message.fromRow(row.cast<String, dynamic>()));
+    } on supa.PostgrestException catch (e) {
+      debugPrint('ChatService.send failed: ${e.code} ${e.message}');
+      // A RESTRICTIVE RLS policy blocks restricted users from inserting.
+      if (e.code == '42501' ||
+          e.message.toLowerCase().contains('row-level security')) {
+        throw Exception(
+            'Messaging is restricted for your account. Please contact support.');
+      }
+      rethrow;
     } catch (e) {
       debugPrint('ChatService.send failed: $e');
       rethrow;
     }
+  }
+
+  /// Edits the body of a message the current user sent (Messenger-style edit).
+  /// RLS allows updating only your own, non-removed messages.
+  Future<void> editMessage({
+    required String patientId,
+    required String messageId,
+    required String body,
+  }) async {
+    final trimmed = body.trim();
+    if (trimmed.isEmpty) return;
+    final row = await _client
+        .from('messages')
+        .update({
+          'body': trimmed,
+          'edited_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', messageId)
+        .select()
+        .single();
+    _upsert(patientId, Message.fromRow(row.cast<String, dynamic>()));
+  }
+
+  /// Unsends a message the current user sent (soft delete — body is hidden in
+  /// the UI but retained for moderation). RLS allows only your own messages.
+  Future<void> unsendMessage({
+    required String patientId,
+    required String messageId,
+  }) async {
+    final row = await _client
+        .from('messages')
+        .update({'deleted_at': DateTime.now().toUtc().toIso8601String()})
+        .eq('id', messageId)
+        .select()
+        .single();
+    _upsert(patientId, Message.fromRow(row.cast<String, dynamic>()));
   }
 }
