@@ -13,6 +13,7 @@ class AdminUser {
     required this.role,
     required this.isActive,
     required this.sharedWithDoctor,
+    required this.messagingRestricted,
     this.createdAt,
   });
 
@@ -22,6 +23,7 @@ class AdminUser {
   final UserRole role;
   final bool isActive;
   final bool sharedWithDoctor;
+  final bool messagingRestricted;
   final DateTime? createdAt;
 
   static AdminUser fromRow(Map<String, dynamic> r) => AdminUser(
@@ -31,8 +33,24 @@ class AdminUser {
         role: userRoleFromString(r['role'] as String?),
         isActive: (r['is_active'] as bool?) ?? true,
         sharedWithDoctor: (r['shared_with_doctor'] as bool?) ?? false,
+        messagingRestricted: (r['messaging_restricted'] as bool?) ?? false,
         createdAt: DateTime.tryParse((r['created_at'] as String?) ?? ''),
       );
+}
+
+/// A chat thread summary for the admin moderation view.
+@immutable
+class MessageThread {
+  const MessageThread({
+    required this.patientId,
+    required this.lastBody,
+    required this.lastAt,
+    required this.count,
+  });
+  final String patientId;
+  final String lastBody;
+  final DateTime lastAt;
+  final int count;
 }
 
 /// An audit-log entry.
@@ -118,8 +136,11 @@ class AdminService extends ChangeNotifier {
   List<AdminUser> _users = [];
   List<AuditEntry> _audit = [];
   List<BreakGlassSession> _breakGlass = [];
+  List<MessageThread> _threads = [];
   bool _loading = false;
   Object? _error;
+
+  List<MessageThread> get messageThreads => List.unmodifiable(_threads);
 
   List<AdminUser> get users => List.unmodifiable(_users);
   List<AuditEntry> get audit => List.unmodifiable(_audit);
@@ -154,7 +175,7 @@ class AdminService extends ChangeNotifier {
   Future<void> _loadUsers() async {
     final rows = await _client
         .from('profiles')
-        .select('id, username, display_name, role, is_active, shared_with_doctor, created_at')
+        .select('id, username, display_name, role, is_active, shared_with_doctor, messaging_restricted, created_at')
         .order('created_at', ascending: true);
     _users = [
       for (final r in rows as List)
@@ -264,6 +285,60 @@ class AdminService extends ChangeNotifier {
         targetUserId: session.targetPatientId,
         detail: 'Revoked emergency access session.');
     await refresh();
+  }
+
+  // ----- Chat moderation -----
+
+  /// Restricts / unrestricts a user from sending chat messages (behavior-based
+  /// moderation). Enforced server-side by the RESTRICTIVE insert policy.
+  Future<void> setMessagingRestricted(AdminUser user, bool restricted) async {
+    await _client
+        .from('profiles')
+        .update({'messaging_restricted': restricted}).eq('id', user.id);
+    await _audited(restricted ? 'messaging_restrict' : 'messaging_unrestrict',
+        targetUserId: user.id,
+        detail:
+            '${restricted ? 'Restricted' : 'Unrestricted'} messaging for ${user.username}.');
+    await refresh();
+  }
+
+  /// Loads every chat thread (admin reads all messages via RLS), summarized by
+  /// patient with the latest message + count. Newest thread first.
+  Future<void> loadMessageThreads() async {
+    final rows = await _client
+        .from('messages')
+        .select('patient_id, body, created_at, deleted_at, removed_by_admin')
+        .order('created_at', ascending: false);
+    final byPatient = <String, List<Map<String, dynamic>>>{};
+    for (final r in rows as List) {
+      final m = (r as Map).cast<String, dynamic>();
+      byPatient.putIfAbsent(m['patient_id'] as String, () => []).add(m);
+    }
+    _threads = byPatient.entries.map((e) {
+      final newest = e.value.first; // ordered desc
+      final unsent =
+          newest['deleted_at'] != null || (newest['removed_by_admin'] as bool? ?? false);
+      return MessageThread(
+        patientId: e.key,
+        lastBody: unsent ? '(message removed)' : (newest['body'] as String? ?? ''),
+        lastAt: DateTime.tryParse(newest['created_at'] as String? ?? '')?.toLocal() ??
+            DateTime.now(),
+        count: e.value.length,
+      );
+    }).toList()
+      ..sort((a, b) => b.lastAt.compareTo(a.lastAt));
+    notifyListeners();
+  }
+
+  /// Moderator removal of a message (soft delete + removed_by_admin flag).
+  Future<void> removeMessage(
+      {required String messageId, required String patientId}) async {
+    await _client.from('messages').update({
+      'deleted_at': DateTime.now().toUtc().toIso8601String(),
+      'removed_by_admin': true,
+    }).eq('id', messageId);
+    await _audited('message_removed',
+        targetUserId: patientId, detail: 'Removed a message in a chat thread.');
   }
 
   /// Read-only fetch of a patient's scan records during a break-glass session.
