@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/admin/admin_shell.dart';
 import 'screens/doctor/doctor_shell.dart';
 import 'screens/home_shell.dart';
-import 'screens/welcome_screen.dart';
+import 'screens/intro_welcome_screen.dart';
 import 'services/auth_service.dart';
 import 'services/notification_center_service.dart';
 import 'services/notification_prefs_service.dart';
@@ -161,7 +161,7 @@ class _AuthGateState extends State<_AuthGate> {
   @override
   Widget build(BuildContext context) {
     final auth = AuthService.instance;
-    if (!auth.isSignedIn) return const WelcomeScreen();
+    if (!auth.isSignedIn) return const IntroWelcomeScreen();
     // Wait for the role to resolve so we don't flash the wrong shell.
     if (!auth.roleResolved) return const _RoleLoadingScreen();
     // An admin can deactivate accounts; a deactivated user is blocked here.
