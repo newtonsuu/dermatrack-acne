@@ -1,20 +1,38 @@
 // Widget tests for the DermaTrack auth flow.
 //
-// The entry screen is the "Login as" access-type selection (Patient / Doctor /
-// Admin · Break-Glass). Picking a role opens a themed LoginScreen; the patient
-// login exposes Register + Forgot-password, while the doctor/admin logins hide
-// the patient-only Register link. These tests run without Supabase — the auth
-// gate falls back to the signed-out WelcomeScreen.
+// Flow: boot -> branded Welcome (IntroWelcomeScreen) -> "Get Started" ->
+// "Login as" access selection -> role-themed LoginScreen. The patient login
+// exposes Register + Forgot-password; doctor/admin logins hide the patient-only
+// Register link. These run without Supabase — the auth gate falls back to the
+// signed-out welcome flow.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:dermatrack/main.dart';
 
+/// Boots the app and advances past the branded welcome to the "Login as"
+/// access-selection screen.
+Future<void> bootToAccessSelection(WidgetTester tester) async {
+  await tester.pumpWidget(const DermaTrackApp());
+  await tester.pumpAndSettle();
+  await tester.ensureVisible(find.text('Get Started'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Get Started'));
+  await tester.pumpAndSettle();
+}
+
 void main() {
-  testWidgets('App boots to the "Login as" access selection', (tester) async {
+  testWidgets('App boots to the branded welcome screen', (tester) async {
     await tester.pumpWidget(const DermaTrackApp());
     await tester.pumpAndSettle();
+
+    expect(find.text('Welcome to DermaTrack'), findsOneWidget);
+    expect(find.text('Get Started'), findsOneWidget);
+  });
+
+  testWidgets('Get Started opens the "Login as" selection', (tester) async {
+    await bootToAccessSelection(tester);
 
     expect(find.text('Login as'), findsOneWidget);
     expect(find.text('Patient'), findsOneWidget);
@@ -24,39 +42,33 @@ void main() {
 
   testWidgets('Patient access opens a login with Register + Forgot password',
       (tester) async {
-    await tester.pumpWidget(const DermaTrackApp());
-    await tester.pumpAndSettle();
+    await bootToAccessSelection(tester);
 
     await tester.tap(find.text('Patient'));
     await tester.pumpAndSettle();
 
     expect(find.text('Welcome back'), findsOneWidget);
     expect(find.text('Sign in'), findsOneWidget);
-    // email + password
-    expect(find.byType(TextFormField), findsNWidgets(2));
+    expect(find.byType(TextFormField), findsNWidgets(2)); // email + password
     expect(find.text('Forgot password?'), findsOneWidget);
     expect(find.text('Register here'), findsOneWidget);
   });
 
   testWidgets('Doctor access opens a login WITHOUT the patient Register link',
       (tester) async {
-    await tester.pumpWidget(const DermaTrackApp());
-    await tester.pumpAndSettle();
+    await bootToAccessSelection(tester);
 
     await tester.tap(find.text('Doctor'));
     await tester.pumpAndSettle();
 
     expect(find.text('Welcome back'), findsOneWidget);
     expect(find.text('Sign in to your Doctor account.'), findsOneWidget);
-    // Register is patient-only; it must not appear on the doctor login.
     expect(find.text('Register here'), findsNothing);
   });
 
   testWidgets('Patient login → "Register here" opens the register screen',
       (tester) async {
-    await tester.pumpWidget(const DermaTrackApp());
-    await tester.pumpAndSettle();
-
+    await bootToAccessSelection(tester);
     await tester.tap(find.text('Patient'));
     await tester.pumpAndSettle();
 
@@ -65,15 +77,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Create your account'), findsOneWidget);
-    // email + username + password + confirm
     expect(find.byType(TextFormField), findsNWidgets(4));
   });
 
   testWidgets('Patient login → "Forgot password?" opens the reset screen',
       (tester) async {
-    await tester.pumpWidget(const DermaTrackApp());
-    await tester.pumpAndSettle();
-
+    await bootToAccessSelection(tester);
     await tester.tap(find.text('Patient'));
     await tester.pumpAndSettle();
 
@@ -84,10 +93,9 @@ void main() {
     expect(find.text('Send reset link'), findsOneWidget);
   });
 
-  testWidgets('Boot → "Create an account" opens the register screen',
+  testWidgets('Login-as → "Create an account" opens the register screen',
       (tester) async {
-    await tester.pumpWidget(const DermaTrackApp());
-    await tester.pumpAndSettle();
+    await bootToAccessSelection(tester);
 
     await tester.ensureVisible(find.text('Create an account'));
     await tester.tap(find.text('Create an account'));
