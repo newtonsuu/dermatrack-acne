@@ -3,7 +3,7 @@ description: A mobile companion for longitudinal acne severity monitoring and se
 publish_to: 'none'
 # 0.2.0 = doctor mode + branded icon/splash polish for the dermatologist
 # demo. Build number tracks separately; bump it whenever you cut a new APK.
-version: 0.8.0+13
+version: 0.8.1+14
 
 environment:
   sdk: '>=3.3.0 <4.0.0'

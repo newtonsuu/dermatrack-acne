@@ -38,6 +38,31 @@ class _AdminShellState extends State<AdminShell> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _confirmSignOut() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: const Text(
+            'You\'ll leave the admin console and be returned to the welcome '
+            'screen.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await AuthService.instance.signOut();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     const tabs = [
@@ -71,7 +96,7 @@ class _AdminShellState extends State<AdminShell> {
           IconButton(
             tooltip: 'Sign out',
             icon: const Icon(Icons.logout),
-            onPressed: () => AuthService.instance.signOut(),
+            onPressed: _confirmSignOut,
           ),
         ],
       ),
