@@ -1,0 +1,60 @@
+---
+title: "Figure 3.X. Dermatologist Side Process Flow"
+---
+flowchart TD
+    A([Start]) --> B[Dermatologist Opens DermaTrack]
+    B --> C[Login]
+    C --> D{Are credentials\nvalid?}
+
+    D -- No --> C
+    D -- Yes --> E[System Checks User Role]
+    E --> F{Is the user role\nDermatologist?}
+
+    F -- No --> G[Deny Access]
+    G --> Z1([End])
+
+    F -- Yes --> H[Open Dermatologist Dashboard]
+    H --> I[View Assigned or\nShared Patients]
+    I --> J{Has the patient\nshared data with\nthe dermatologist?}
+
+    J -- No --> K[Show No Accessible\nPatient Data]
+    K --> Z2([End])
+
+    J -- Yes --> L[Dermatologist Selects Patient]
+    L --> M[System Displays Patient Profile,\nMedical History, Scan History,\nSeverity Results, Notes,\nand Generated Reports]
+    M --> N[Dermatologist Reviews\nPatient Information\n&#40;API severity output is supporting\ninformation only — not a diagnosis&#41;]
+
+    N --> O{Does the dermatologist\nneed to add a note?}
+    O -- Yes --> P[Add Doctor Note to Scan]
+    P --> Q[Save Doctor Note]
+    Q --> R{Does the dermatologist need\nto issue or update\na prescription?}
+    O -- No --> R
+
+    R -- Yes --> S[Create or Update Prescription]
+    S --> T[Save Prescription]
+    T --> U{Does the dermatologist need\nto create or update\na treatment plan?}
+    R -- No --> U
+
+    U -- Yes --> V[Create or Update Treatment Plan]
+    V --> W[Save Treatment Plan]
+    W --> X{Does the dermatologist\nneed to message\nthe patient?}
+    U -- No --> X
+
+    X -- Yes --> Y[Compose and Send Message]
+    Y --> YA[Save Message]
+    YA --> Z[System Updates\nPatient-Accessible Records]
+    X -- No --> Z
+
+    Z --> Z3([End])
+
+    style A fill:#ffffff,stroke:#333,stroke-width:2px
+    style Z1 fill:#ffffff,stroke:#333,stroke-width:2px
+    style Z2 fill:#ffffff,stroke:#333,stroke-width:2px
+    style Z3 fill:#ffffff,stroke:#333,stroke-width:2px
+    style D fill:#dce8f5,stroke:#336699
+    style F fill:#dce8f5,stroke:#336699
+    style J fill:#dce8f5,stroke:#336699
+    style O fill:#dce8f5,stroke:#336699
+    style R fill:#dce8f5,stroke:#336699
+    style U fill:#dce8f5,stroke:#336699
+    style X fill:#dce8f5,stroke:#336699
