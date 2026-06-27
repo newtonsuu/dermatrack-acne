@@ -1,0 +1,71 @@
+<mxfile host="app.diagrams.net" modified="2026-06-27" agent="Claude" version="21.0">
+  <diagram id="derm-b" name="Figure 3.X.b Dermatologist Review and Action Flow">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/><mxCell id="1" parent="0"/>
+
+        <!-- Continuation marker -->
+        <mxCell id="cnt_b" value="Continued from Figure 3.X.a" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=10;dashed=1;" vertex="1" parent="1"><mxGeometry x="315" y="20" width="170" height="40" as="geometry"/></mxCell>
+
+        <!-- Nodes shifted up by 1260 from original positions -->
+        <!-- Optional action: Note (original y=1360 → new y=100) -->
+        <mxCell id="v15" value="Does the dermatologist&#xa;need to add a note?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dce8f5;strokeColor=#336699;fontSize=10;" vertex="1" parent="1"><mxGeometry x="300" y="100" width="200" height="80" as="geometry"/></mxCell>
+        <mxCell id="v16" value="Add Doctor Note to Scan" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1"><mxGeometry x="570" y="100" width="190" height="60" as="geometry"/></mxCell>
+        <mxCell id="v17" value="Save Doctor Note" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1"><mxGeometry x="570" y="210" width="190" height="60" as="geometry"/></mxCell>
+
+        <!-- Optional action: Prescription (original y=1570 → new y=310) -->
+        <mxCell id="v18" value="Does the dermatologist need&#xa;to issue or update a prescription?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dce8f5;strokeColor=#336699;fontSize=10;" vertex="1" parent="1"><mxGeometry x="300" y="310" width="200" height="80" as="geometry"/></mxCell>
+        <mxCell id="v19" value="Create or Update Prescription" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1"><mxGeometry x="570" y="310" width="190" height="60" as="geometry"/></mxCell>
+        <mxCell id="v20" value="Save Prescription" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1"><mxGeometry x="570" y="420" width="190" height="60" as="geometry"/></mxCell>
+
+        <!-- Optional action: Treatment plan (original y=1780 → new y=520) -->
+        <mxCell id="v21" value="Does the dermatologist need&#xa;to create or update a treatment plan?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dce8f5;strokeColor=#336699;fontSize=10;" vertex="1" parent="1"><mxGeometry x="300" y="520" width="200" height="80" as="geometry"/></mxCell>
+        <mxCell id="v22" value="Create or Update Treatment Plan" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1"><mxGeometry x="570" y="520" width="190" height="60" as="geometry"/></mxCell>
+        <mxCell id="v23" value="Save Treatment Plan" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1"><mxGeometry x="570" y="630" width="190" height="60" as="geometry"/></mxCell>
+
+        <!-- Optional action: Message (original y=1990 → new y=730) -->
+        <mxCell id="v24" value="Does the dermatologist&#xa;need to message the patient?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dce8f5;strokeColor=#336699;fontSize=10;" vertex="1" parent="1"><mxGeometry x="300" y="730" width="200" height="80" as="geometry"/></mxCell>
+        <mxCell id="v25" value="Compose and Send Message" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1"><mxGeometry x="570" y="730" width="190" height="60" as="geometry"/></mxCell>
+        <mxCell id="v26" value="Save Message" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1"><mxGeometry x="570" y="840" width="190" height="60" as="geometry"/></mxCell>
+
+        <!-- Final (original y=2210 → new y=950) -->
+        <mxCell id="v27" value="System Updates&#xa;Patient-Accessible Records" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1"><mxGeometry x="300" y="950" width="200" height="60" as="geometry"/></mxCell>
+        <mxCell id="v_end3" value="End" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#ffffff;strokeColor=#333333;fontStyle=1;fontSize=11;" vertex="1" parent="1"><mxGeometry x="340" y="1060" width="120" height="40" as="geometry"/></mxCell>
+
+        <!-- EDGES -->
+        <mxCell id="e0" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="cnt_b" target="v15" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e18" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" source="v15" target="v16" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e19" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v16" target="v17" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e20" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="v17" target="v18" parent="1">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="530" y="240"/><mxPoint x="530" y="350"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e21" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" source="v15" target="v18" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e22" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" source="v18" target="v19" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e23" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v19" target="v20" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e24" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="v20" target="v21" parent="1">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="530" y="450"/><mxPoint x="530" y="560"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e25" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" source="v18" target="v21" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e26" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" source="v21" target="v22" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e27" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v22" target="v23" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e28" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="v23" target="v24" parent="1">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="530" y="660"/><mxPoint x="530" y="770"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e29" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" source="v21" target="v24" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e30" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" source="v24" target="v25" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e31" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v25" target="v26" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e32" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="v26" target="v27" parent="1">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="530" y="870"/><mxPoint x="530" y="980"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e33" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" source="v24" target="v27" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e34" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v27" target="v_end3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
