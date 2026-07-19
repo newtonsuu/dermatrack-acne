@@ -1,0 +1,32 @@
+@startuml dfd_context
+' DermaTrack — Data Flow Diagram, Level 0 (Context)
+' External entities + the single system process + major data flows.
+left to right direction
+skinparam rectangle {
+  BackgroundColor #FDF6E3
+  BorderColor black
+}
+skinparam usecase {
+  BackgroundColor #E8F4F4
+  BorderColor #1F8A8A
+}
+
+rectangle "Patient" as P
+rectangle "Doctor\n(Dermatologist)" as D
+rectangle "Admin" as A
+rectangle "Roboflow\n(lesion detection)" as RB
+rectangle "Hugging Face\n(severity classifier)" as HF
+
+usecase "0\nDermaTrack\nSystem" as SYS
+
+P --> SYS : photos, scan notes,\nconsent, profile, messages
+SYS --> P : severity result + guidance,\nhistory, notes, prescriptions, alerts
+D --> SYS : notes, treatment plans,\nprescriptions, messages
+SYS --> D : consenting patients' scans,\nhistory, trend
+A --> SYS : role changes, activate/deactivate,\nbreak-glass (reason, duration)
+SYS --> A : user list, monitoring, audit log
+SYS --> RB : scan image
+RB --> SYS : lesion predictions
+SYS --> HF : scan image
+HF --> SYS : severity level
+@enduml

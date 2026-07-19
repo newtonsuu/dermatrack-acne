@@ -1,0 +1,8 @@
+stage,vus,operation,total_requests,successful,failed,error_rate_pct,avg_ms,p95_ms,max_ms,throughput_rps
+3VU,3,login,3,3,0,0.0,783.8,1059.2,1059.2,0.5
+3VU,3,dashboard,6,6,0,0.0,438.1,636.6,636.6,1.0
+3VU,3,severity_view,6,6,0,0.0,472.6,823.3,823.3,1.0
+3VU,3,history,6,6,0,0.0,340.7,369.1,369.1,1.0
+3VU,3,upload,6,6,0,0.0,426.7,477.1,477.1,1.0
+3VU,3,report,6,6,0,0.0,1080.3,1197.1,1197.1,1.0
+3VU,3,OVERALL,33,33,0,0.0,572.8,1082.8,1197.1,5.5

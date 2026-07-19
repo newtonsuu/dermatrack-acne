@@ -1,0 +1,110 @@
+{
+  "started": "2026-05-30T13:28:37.697355+00:00",
+  "target": "https://mqnoexkihwfmebalfobo.supabase.co",
+  "stages": [
+    3
+  ],
+  "duration_s": 6,
+  "metrics": [
+    {
+      "stage": "3VU",
+      "vus": 3,
+      "operation": "login",
+      "total_requests": 3,
+      "successful": 3,
+      "failed": 0,
+      "error_rate_pct": 0.0,
+      "avg_ms": 783.8,
+      "p95_ms": 1059.2,
+      "max_ms": 1059.2,
+      "throughput_rps": 0.5
+    },
+    {
+      "stage": "3VU",
+      "vus": 3,
+      "operation": "dashboard",
+      "total_requests": 6,
+      "successful": 6,
+      "failed": 0,
+      "error_rate_pct": 0.0,
+      "avg_ms": 438.1,
+      "p95_ms": 636.6,
+      "max_ms": 636.6,
+      "throughput_rps": 1.0
+    },
+    {
+      "stage": "3VU",
+      "vus": 3,
+      "operation": "severity_view",
+      "total_requests": 6,
+      "successful": 6,
+      "failed": 0,
+      "error_rate_pct": 0.0,
+      "avg_ms": 472.6,
+      "p95_ms": 823.3,
+      "max_ms": 823.3,
+      "throughput_rps": 1.0
+    },
+    {
+      "stage": "3VU",
+      "vus": 3,
+      "operation": "history",
+      "total_requests": 6,
+      "successful": 6,
+      "failed": 0,
+      "error_rate_pct": 0.0,
+      "avg_ms": 340.7,
+      "p95_ms": 369.1,
+      "max_ms": 369.1,
+      "throughput_rps": 1.0
+    },
+    {
+      "stage": "3VU",
+      "vus": 3,
+      "operation": "upload",
+      "total_requests": 6,
+      "successful": 6,
+      "failed": 0,
+      "error_rate_pct": 0.0,
+      "avg_ms": 426.7,
+      "p95_ms": 477.1,
+      "max_ms": 477.1,
+      "throughput_rps": 1.0
+    },
+    {
+      "stage": "3VU",
+      "vus": 3,
+      "operation": "report",
+      "total_requests": 6,
+      "successful": 6,
+      "failed": 0,
+      "error_rate_pct": 0.0,
+      "avg_ms": 1080.3,
+      "p95_ms": 1197.1,
+      "max_ms": 1197.1,
+      "throughput_rps": 1.0
+    },
+    {
+      "stage": "3VU",
+      "vus": 3,
+      "operation": "OVERALL",
+      "total_requests": 33,
+      "successful": 33,
+      "failed": 0,
+      "error_rate_pct": 0.0,
+      "avg_ms": 572.8,
+      "p95_ms": 1082.8,
+      "max_ms": 1197.1,
+      "throughput_rps": 5.5
+    }
+  ],
+  "analysis_benchmark": {
+    "calls": 0,
+    "successful": 0,
+    "avg_ms": null,
+    "p95_ms": null,
+    "max_ms": null,
+    "min_ms": null,
+    "samples": []
+  }
+}

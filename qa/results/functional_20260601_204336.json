@@ -1,0 +1,183 @@
+{
+  "target": "https://mqnoexkihwfmebalfobo.supabase.co",
+  "timestamp": "2026-06-01T12:43:36.087606+00:00",
+  "summary": {
+    "Passed": 7,
+    "Passed with Notes": 5,
+    "Not Executed (Manual/Device)": 1,
+    "Failed": 6
+  },
+  "cases": [
+    {
+      "id": "FT-01",
+      "function": "Registration",
+      "procedure": "POST /auth/v1/signup with a valid new (Mapua) email",
+      "expected": "Account created; user authenticated/redirected",
+      "actual": "HTTP 200; account created & session issued=True",
+      "status": "Passed",
+      "remarks": "Email confirmation disabled, so signup logs in immediately."
+    },
+    {
+      "id": "FT-02",
+      "function": "Login (valid)",
+      "procedure": "POST token grant with correct credentials",
+      "expected": "Authenticated; token issued; redirect to dashboard",
+      "actual": "HTTP 200; token issued=True",
+      "status": "Passed",
+      "remarks": ""
+    },
+    {
+      "id": "FT-03",
+      "function": "Login (invalid)",
+      "procedure": "POST token grant with wrong password",
+      "expected": "Login rejected with clear error",
+      "actual": "HTTP 400; body={\"code\":400,\"error_code\":\"invalid_credentials\",\"msg\":\"Invalid login credentials\"}",
+      "status": "Passed",
+      "remarks": "App maps this to 'Incorrect email or password' (auth_service._mapAuthException)."
+    },
+    {
+      "id": "FT-04",
+      "function": "Dashboard loading",
+      "procedure": "Load profile + recent scans the dashboard renders",
+      "expected": "Dashboard loads with nav (Home/Scan/Calendar/Profile) + data",
+      "actual": "profile HTTP 200, recent-scans HTTP 200",
+      "status": "Passed with Notes",
+      "remarks": "Data load verified via API; on-screen nav/rendering to be captured from the app (HomeShell has 4 tabs)."
+    },
+    {
+      "id": "FT-05",
+      "function": "Facial image capture (camera)",
+      "procedure": "Capture a face image via device camera",
+      "expected": "Image accepted and prepared for analysis",
+      "actual": "Not auto-executable headlessly (no device camera)",
+      "status": "Not Executed (Manual/Device)",
+      "remarks": "Requires a physical device; capture path exists in camera_screen.dart. Verify manually on the APK."
+    },
+    {
+      "id": "FT-06",
+      "function": "Facial image upload",
+      "procedure": "Upload a JPEG to scan-images storage (gallery pick)",
+      "expected": "Image accepted and stored, ready for analysis",
+      "actual": "HTTP 200; stored at c5f72f4d-6faa-4aa4-a1f6-812174b7f1b0/ft_...",
+      "status": "Passed with Notes",
+      "remarks": "API upload verified; UI gallery picker (image_picker) works on web/mobile - capture screenshot from app."
+    },
+    {
+      "id": "FT-07",
+      "function": "Invalid/missing image handling",
+      "procedure": "Submit analysis with no image fields",
+      "expected": "Submission prevented / handled error, no crash",
+      "actual": "HTTP 400; body={\"error\":\"Missing scan_id or image_path\"}",
+      "status": "Passed",
+      "remarks": "Edge function returns handled 400 'Missing scan_id or image_path'; app also blocks submit with no image."
+    },
+    {
+      "id": "FT-08",
+      "function": "API-based acne analysis",
+      "procedure": "Submit a valid image to analyze-scan (Roboflow/HF)",
+      "expected": "Image sent to external API; response received",
+      "actual": "HTTP 502 in 5575ms; grade=None severity=None",
+      "status": "Failed",
+      "remarks": "External API dependency + ~5-10s latency (cold start possible)."
+    },
+    {
+      "id": "FT-10",
+      "function": "Result display",
+      "procedure": "Inspect analysis result payload the result screen renders",
+      "expected": "Severity/grade, counts, models, status shown",
+      "actual": "cook_grade=None, severity=None, detection=None, classifier=None",
+      "status": "Failed",
+      "remarks": "Result fields present in payload; scan_detail_screen renders them. Screenshot from app."
+    },
+    {
+      "id": "FT-11",
+      "function": "Non-diagnostic notice",
+      "procedure": "Check result wording for a monitoring-only disclaimer",
+      "expected": "Presented as monitoring support; no diagnosis/treatment claim",
+      "actual": "No explicit non-diagnostic disclaimer found in UI; results shown as neutral severity grades only",
+      "status": "Failed",
+      "remarks": "System makes NO diagnostic/treatment claim (good), but the REQUIRED 'monitoring only, not a diagnosis' notice is absent. Recommend adding a disclaimer banner on the result screen."
+    },
+    {
+      "id": "FT-12",
+      "function": "Save scan record",
+      "procedure": "Verify the analyzed scan persisted with metadata",
+      "expected": "Scan row with image ref, date, result, metadata saved",
+      "actual": "HTTP 200; row_found=False",
+      "status": "Failed",
+      "remarks": "analyze-scan inserts the row server-side."
+    },
+    {
+      "id": "FT-13",
+      "function": "Add notes",
+      "procedure": "Patch a note onto the scan and read it back",
+      "expected": "Note saved and linked to the scan",
+      "actual": "HTTP 204; persisted note matches=False",
+      "status": "Failed",
+      "remarks": ""
+    },
+    {
+      "id": "FT-14",
+      "function": "View acne history",
+      "procedure": "GET all scans newest-first",
+      "expected": "Previous scans listed chronologically",
+      "actual": "HTTP 200; records=2; newest-first=True",
+      "status": "Passed",
+      "remarks": ""
+    },
+    {
+      "id": "FT-15",
+      "function": "View scan details",
+      "procedure": "Open one record; verify image ref, date, result, notes",
+      "expected": "Record opens with full details",
+      "actual": "HTTP 200; details present + note linked=False",
+      "status": "Failed",
+      "remarks": ""
+    },
+    {
+      "id": "FT-16",
+      "function": "Progress tracking",
+      "procedure": "Retrieve multiple dated grades for trend",
+      "expected": "Repeated records reviewable over time",
+      "actual": "HTTP 200; gradable records over time=2",
+      "status": "Passed with Notes",
+      "remarks": "Trend data present; SeverityTrendChart renders it on the dashboard - screenshot from app."
+    },
+    {
+      "id": "FT-17",
+      "function": "Consultation-ready summary",
+      "procedure": "Retrieve scans + history + plan bundle the report compiles",
+      "expected": "Organized scans, dates, notes, summaries for consult",
+      "actual": "scans HTTP 200, history HTTP 200, plan HTTP 200",
+      "status": "Passed with Notes",
+      "remarks": "Report data retrievable; PDF is generated client-side (DoctorReportService) - export/screenshot from app."
+    },
+    {
+      "id": "FT-18",
+      "function": "Profile access",
+      "procedure": "GET own profile",
+      "expected": "Profile displays user info",
+      "actual": "HTTP 200; profile={'username': 'ft_a', 'display_name': 'ft_a'}",
+      "status": "Passed",
+      "remarks": ""
+    },
+    {
+      "id": "FT-19",
+      "function": "Logout",
+      "procedure": "POST /auth/v1/logout for the session",
+      "expected": "Session ended; return to login",
+      "actual": "HTTP 204 (204 = session/refresh-token revoked)",
+      "status": "Passed with Notes",
+      "remarks": "Server logout confirmed; app clears session and routes to WelcomeScreen (auth_service.signOut)."
+    },
+    {
+      "id": "FT-20",
+      "function": "Account-based record access",
+      "procedure": "As User B, attempt to read User A's scans",
+      "expected": "User B cannot access User A's records",
+      "actual": "HTTP 200; A-records visible to B=0",
+      "status": "Passed",
+      "remarks": "Enforced by Supabase row-level security (RLS)."
+    }
+  ]
+}

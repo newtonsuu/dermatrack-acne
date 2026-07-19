@@ -1,0 +1,46 @@
+@startuml trust_boundary_dfd
+' DermaTrack — Security trust-boundary data flow (extra figure for a health-data thesis).
+' Shows where PHI crosses trust boundaries and where controls are enforced.
+left to right direction
+skinparam rectangle { BackgroundColor #FDF6E3 BorderColor black }
+skinparam database { BackgroundColor #FFF3E0 BorderColor #FF9800 }
+skinparam usecase { BackgroundColor #E8F4F4 BorderColor #1F8A8A }
+
+rectangle "Patient / Doctor / Admin\n(authenticated user)" as U
+
+package "Trust boundary: User device" {
+  usecase "Flutter app\n(session timeout 15m,\nlockout 5/60s)" as APP
+}
+
+package "Trust boundary: Supabase cloud" {
+  usecase "PostgREST + RLS\n(per-row access control)" as API
+  database "PHI tables\n(profiles, scans, patient_histories,\ndoctor_notes, prescriptions, messages)" as PHI
+  database "Audit (audit_log,\nbreak_glass_sessions)" as AUD
+  usecase "Storage\n(private buckets,\nsigned URLs)" as ST
+  usecase "Edge Function\n(analyze-scan)" as EF
+}
+
+package "Trust boundary: External ML" {
+  usecase "Roboflow / Hugging Face" as ML
+}
+
+U --> APP : credentials, photos (HTTPS/TLS)
+APP --> API : JWT-authenticated calls (HTTPS)
+API --> PHI : RLS-filtered read/write
+API --> AUD : append-only logging
+APP --> ST : upload/download via signed URLs (HTTPS)
+APP --> EF : invoke (HTTPS, JWT)
+EF --> ML : scan image (HTTPS) -- crosses to 3rd party
+EF --> PHI : write grade
+
+note bottom of API
+  Enforcement point: every PHI access passes RLS.
+  Keys: anon key in client (safe), service_role NOT in client,
+  ML API keys are Edge Function secrets (not in repo).
+end note
+note bottom of ML
+  Image leaves the Supabase boundary to 3rd-party ML.
+  Reviewer note: data-processing agreement / de-identification
+  is a governance consideration for production.
+end note
+@enduml

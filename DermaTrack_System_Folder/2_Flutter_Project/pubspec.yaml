@@ -1,0 +1,121 @@
+name: dermatrack
+description: A mobile companion for longitudinal acne severity monitoring and self-care tracking.
+publish_to: 'none'
+# 0.2.0 = doctor mode + branded icon/splash polish for the dermatologist
+# demo. Build number tracks separately; bump it whenever you cut a new APK.
+version: 0.8.1+14
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+  flutter: '>=3.19.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  image_picker: ^1.1.2
+  path_provider: ^2.1.4
+  shared_preferences: ^2.3.2
+  supabase_flutter: ^2.5.0
+  uuid: ^4.4.0
+  fl_chart: ^0.68.0
+  # On-device face detection — used by FaceDetectionService for the camera
+  # screen's preflight gate (and, in phase B, per-region partitioning of
+  # detected lesions). Android + iOS only; the camera flow falls back to
+  # skipping preflight on Flutter Web.
+  google_mlkit_face_detection: ^0.10.0
+  # Live camera preview for the guided daily-scan session. The existing
+  # single-shot Scan tab still uses image_picker (system camera). This
+  # package only gets touched by the ScanSession flow — it gives us a
+  # Flutter-rendered preview widget that the RegionOverlayPainter can
+  # draw on top of, plus a frame stream for live ML Kit alignment checks.
+  camera: ^0.11.0
+  # Local (on-device) notifications used by ScanReminderService for the
+  # daily scan reminder. NOT push notifications — those would require
+  # Firebase Cloud Messaging + a device-token registration flow, which
+  # is deferred to a future phase. Local notifications are sufficient
+  # for "remind me at 9am every day to scan."
+  flutter_local_notifications: ^17.2.3
+  # Time-zone-aware scheduling helper. flutter_local_notifications'
+  # zonedSchedule needs a tz.TZDateTime; this package gives us the
+  # location database and the timezone() lookup.
+  timezone: ^0.9.4
+  # PDF generation + share/print for the dermatologist's patient report.
+  # `pdf` builds the document; `printing` hands it to the OS share/print
+  # sheet and provides the network-image loader for scan thumbnails in the
+  # report. Used only by the doctor-side report export flow.
+  pdf: ^3.11.1
+  printing: ^5.13.2
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+  flutter_test:
+    sdk: flutter
+  # Build-time-only generators for the launcher icon and the native splash
+  # screen. They consume the PNGs under assets/icon/ and the config blocks
+  # below (`flutter_launcher_icons:` / `flutter_native_splash:`), and emit
+  # platform-specific assets into android/. Re-run after editing the config
+  # or swapping the source PNG:
+  #   dart run flutter_launcher_icons
+  #   dart run flutter_native_splash:create
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    # Per-class educational reference images shown on the scan-detail
+    # screen when a user taps a detected lesion class. Sourced from
+    # DermNet NZ (CC BY-NC-ND) — see app/lib/data/acne_references.dart
+    # for the data + attribution per image. Missing files degrade
+    # gracefully via Image.asset's errorBuilder.
+    - assets/references/
+
+# ============================================
+# Launcher icon (flutter_launcher_icons)
+# ============================================
+# Generates Android launcher icons at every required density from the
+# master PNGs under assets/icon/. Run `dart run flutter_launcher_icons`
+# after editing this block or swapping the source PNGs.
+#
+#   image_path                  — legacy (pre-Android 8) square icon. Used
+#                                  when the device doesn't support adaptive
+#                                  icons.
+#   adaptive_icon_background    — solid hex behind the foreground layer
+#                                  (DermaTrack teal). Could also be a PNG.
+#   adaptive_icon_foreground    — the white "DT" with transparent
+#                                  background, sized to fit Android's
+#                                  ~66% safe zone so launcher masks
+#                                  (circle / squircle / square) don't
+#                                  crop the letterform.
+#   remove_alpha_ios            — defensive: iOS rejects icons with alpha,
+#                                  so the generator flattens them.
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  adaptive_icon_background: "#1F8A8A"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+  remove_alpha_ios: true
+  min_sdk_android: 21
+
+# ============================================
+# Native splash (flutter_native_splash)
+# ============================================
+# Replaces the default blank-white launch screen with a teal background +
+# white "DT" centered. Uses Android 12+'s branded splash API where
+# available, falls back to a drawable on older Android. Run
+# `dart run flutter_native_splash:create` after editing this block.
+#
+# image is the same foreground PNG as the adaptive icon — letting both
+# the launcher tile and the splash share the same visual identity.
+flutter_native_splash:
+  color: "#1F8A8A"
+  image: assets/icon/app_icon_foreground.png
+  android: true
+  ios: true
+  # Android 12+ branded launch screen — uses a dedicated 240dp icon layer
+  # so the foreground "DT" reads at the same size as on the launcher tile.
+  android_12:
+    color: "#1F8A8A"
+    image: assets/icon/app_icon_foreground.png

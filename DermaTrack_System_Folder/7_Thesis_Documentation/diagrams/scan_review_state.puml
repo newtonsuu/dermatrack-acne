@@ -1,0 +1,12 @@
+@startuml scan_review_state
+' DermaTrack — Scan review status (derived from presence of a doctor_notes row).
+' The doctor patient list flags scans with no note as "needs review".
+title Scan review status
+[*] --> Unreviewed : patient submits scan
+Unreviewed : no doctor_notes row;\nshown under "needs review"
+Unreviewed --> Reviewed : doctor writes note\n(requires patient consent)
+Reviewed : doctor_notes row exists;\npatient sees "From your dermatologist"
+Reviewed --> Reviewed : doctor edits note
+Reviewed --> [*]
+Unreviewed --> [*] : patient deletes scan
+@enduml

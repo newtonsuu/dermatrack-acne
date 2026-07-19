@@ -1,0 +1,15 @@
+@startuml status_statediagram
+' DermaTrack — Break-glass session lifecycle (the richest real state machine).
+' From break_glass_sessions (granted_at, expires_at, revoked) + admin_service.
+title Break-glass session status
+[*] --> Active : admin opens session\n(reason + 15/30/60 min)\n[audit: break_glass_opened]
+Active : read-only access to patient\nscans + histories (RLS)
+Active --> Expired : now() > expires_at\n(automatic)
+Active --> Revoked : admin revokes\n[audit: break_glass_revoked]
+Expired --> [*]
+Revoked --> [*]
+note right of Active
+  has_active_break_glass() = true ONLY in this state.
+  No write access; scan images are not exposed.
+end note
+@enduml

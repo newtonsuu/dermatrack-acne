@@ -1,0 +1,32 @@
+@startuml seq_prescription
+' DermaTrack — Doctor issues a prescription (with images); patient views it.
+' From doctor_prescriptions_screen -> prescription_service -> Storage + prescriptions
+autonumber
+actor Doctor
+participant "DoctorPrescriptions" as DP
+participant "PrescriptionService" as PS
+participant "Storage\n(prescription-images)" as ST
+database "prescriptions" as DB
+actor Patient
+participant "PrescriptionsScreen" as PV
+
+Doctor -> DP : compose body + attach images
+DP -> PS : addPrescription(patientId, body, images)
+loop each image
+  PS -> ST : upload {patientId}/{rxId}/{i}.jpg
+  ST --> PS : path
+end
+PS -> DB : insert prescriptions (user_id, body, image_paths)
+note right of DB : RLS: only doctor + consenting patient
+DB --> PS : ok
+PS --> DP : refreshed list
+
+== later ==
+Patient -> PV : open Prescriptions
+PV -> PS : loadForPatient(ownId)
+PS -> DB : select prescriptions where user_id = ownId
+DB --> PS : rows
+PS -> ST : createSignedUrl(image_paths)
+ST --> PS : signed URLs
+PS --> PV : prescriptions (+ images)
+@enduml

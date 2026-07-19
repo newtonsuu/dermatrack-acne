@@ -1,0 +1,260 @@
+<mxfile host="app.diagrams.net" modified="2026-06-20" agent="Claude" version="21.0">
+  <diagram id="admin-flow" name="Admin Process Flow">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="3100" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- START -->
+        <mxCell id="v1" value="Start" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#ffffff;strokeColor=#333333;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="20" width="120" height="40" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v2" value="Admin Opens DermaTrack" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="290" y="100" width="220" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v3" value="Login" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="200" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v4" value="Are credentials valid?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dce8f5;strokeColor=#336699;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="310" width="200" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- ROLE CHECK -->
+        <mxCell id="v5" value="System Checks User Role" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="440" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v6" value="Is the user role Admin?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dce8f5;strokeColor=#336699;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="550" width="200" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- DENY ACCESS -->
+        <mxCell id="v7" value="Deny Access" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="560" width="180" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v_end1" value="End" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#ffffff;strokeColor=#333333;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="65" y="670" width="120" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- DASHBOARD -->
+        <mxCell id="v8" value="Open Admin Dashboard" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="680" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v9" value="Admin Selects Management Function" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="290" y="780" width="220" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v10" value="Manage User Accounts" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="880" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- ACCOUNT ACTIVATION -->
+        <mxCell id="v11" value="Does an account require&#xa;activation or deactivation?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dce8f5;strokeColor=#336699;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="990" width="200" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v12" value="Update Account Status" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="570" y="1000" width="180" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- ROLE REVIEW -->
+        <mxCell id="v13" value="Review User Roles" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="1120" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v14" value="Is role correction needed?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dce8f5;strokeColor=#336699;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="1230" width="200" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v15" value="Update Role Setting" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="570" y="1240" width="180" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- MESSAGING CONTROLS -->
+        <mxCell id="v16" value="Review Messaging Controls" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="1360" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v17" value="Is messaging&#xa;restriction needed?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dce8f5;strokeColor=#336699;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="1470" width="200" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v18" value="Apply or Remove&#xa;Messaging Restriction" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="570" y="1470" width="180" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- AUDIT LOG REVIEW -->
+        <mxCell id="v19" value="Review Audit Logs" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="1600" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v20" value="Does an issue require&#xa;administrative review?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dce8f5;strokeColor=#336699;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="1710" width="200" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- NO ISSUE BRANCH -->
+        <mxCell id="v21" value="Record Review Action&#xa;in Audit Log (if applicable)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1720" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v_end2" value="End" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#ffffff;strokeColor=#333333;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1830" width="120" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- ISSUE → EVALUATE -->
+        <mxCell id="v22" value="Evaluate Issue" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="1840" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- BREAK-GLASS DECISION -->
+        <mxCell id="v23" value="Is break-glass access&#xa;justified?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dce8f5;strokeColor=#336699;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="1950" width="200" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- DENY BREAK-GLASS (left) -->
+        <mxCell id="v24" value="Deny Break-Glass Access" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1960" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v25" value="Record Denial&#xa;in Audit Log" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="2070" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v_end3" value="End" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#ffffff;strokeColor=#333333;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="80" y="2180" width="120" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- GRANT BREAK-GLASS (down) -->
+        <mxCell id="v26" value="Grant Break-Glass Access" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="2080" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v27" value="Set Reason, Duration,&#xa;Read-Only Status,&#xa;Granted Time, Expiry Time,&#xa;and Revocation Status" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="290" y="2180" width="220" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v28" value="System Records Admin Action&#xa;in Audit Log" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="290" y="2310" width="220" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- EXPIRY / REVOCATION DECISION -->
+        <mxCell id="v29" value="Has break-glass access&#xa;expired or been revoked?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dce8f5;strokeColor=#336699;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="2420" width="200" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- YES: revoke / expire (right) -->
+        <mxCell id="v30" value="Revoke or Mark&#xa;Session Expired" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="570" y="2430" width="180" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v31" value="Update Audit Log" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="570" y="2540" width="180" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v_end4" value="End" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#ffffff;strokeColor=#333333;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="595" y="2650" width="120" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- NO: maintain until expiry (down) -->
+        <mxCell id="v32" value="Maintain Access&#xa;Until Expiry Only" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="2560" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v_end5" value="End" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#ffffff;strokeColor=#333333;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="2670" width="120" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== EDGES ===== -->
+
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v1" target="v2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v2" target="v3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v3" target="v4" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Invalid login → loop -->
+        <mxCell id="e4" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="v4" target="v3" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="550" y="350"/><mxPoint x="550" y="230"/></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e5" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v4" target="v5" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v5" target="v6" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Not admin → Deny -->
+        <mxCell id="e7" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" edge="1" source="v6" target="v7" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v7" target="v_end1" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e9" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v6" target="v8" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v8" target="v9" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v9" target="v10" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v10" target="v11" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Activation? Yes → right, then merge -->
+        <mxCell id="e13" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" source="v11" target="v12" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e14" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="v12" target="v13" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="530" y="1030"/><mxPoint x="530" y="1150"/></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e15" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" source="v11" target="v13" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e16" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v13" target="v14" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Role correction? Yes → right, merge -->
+        <mxCell id="e17" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" source="v14" target="v15" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e18" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="v15" target="v16" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="530" y="1270"/><mxPoint x="530" y="1390"/></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e19" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" source="v14" target="v16" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e20" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v16" target="v17" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Messaging restriction? Yes → right, merge -->
+        <mxCell id="e21" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" source="v17" target="v18" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e22" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="v18" target="v19" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="530" y="1500"/><mxPoint x="530" y="1630"/></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e23" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" source="v17" target="v19" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e24" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v19" target="v20" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Admin review? No → left (record action) -->
+        <mxCell id="e25" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" edge="1" source="v20" target="v21" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e26" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v21" target="v_end2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Admin review? Yes → evaluate -->
+        <mxCell id="e27" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" source="v20" target="v22" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e28" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v22" target="v23" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- BG not justified → left deny -->
+        <mxCell id="e29" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" edge="1" source="v23" target="v24" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e30" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v24" target="v25" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e31" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v25" target="v_end3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- BG justified → grant -->
+        <mxCell id="e32" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" source="v23" target="v26" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e33" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v26" target="v27" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e34" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v27" target="v28" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e35" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v28" target="v29" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Expired/revoked? Yes → right (revoke) -->
+        <mxCell id="e36" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" source="v29" target="v30" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e37" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v30" target="v31" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e38" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v31" target="v_end4" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Expired/revoked? No → maintain (down) -->
+        <mxCell id="e39" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" source="v29" target="v32" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e40" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="v32" target="v_end5" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

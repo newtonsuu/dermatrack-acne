@@ -1,0 +1,71 @@
+---
+title: "Figure 3.X. Admin Side Process Flow"
+---
+flowchart TD
+    A([Start]) --> B[Admin Opens DermaTrack]
+    B --> C[Login]
+    C --> D{Are credentials\nvalid?}
+
+    D -- No --> C
+    D -- Yes --> E[System Checks User Role]
+    E --> F{Is the user role\nAdmin?}
+
+    F -- No --> G[Deny Access]
+    G --> Z1([End])
+
+    F -- Yes --> H[Open Admin Dashboard]
+    H --> I[Admin Selects\nManagement Function]
+
+    I --> J[Manage User Accounts]
+    J --> K{Does an account require\nactivation or deactivation?}
+    K -- Yes --> L[Update Account Status]
+    L --> M[Review User Roles]
+    K -- No --> M
+
+    M --> N{Is role\ncorrection needed?}
+    N -- Yes --> O[Update Role Setting]
+    O --> P[Review Messaging Controls]
+    N -- No --> P
+
+    P --> Q{Is messaging\nrestriction needed?}
+    Q -- Yes --> R[Apply or Remove\nMessaging Restriction]
+    R --> S[Review Audit Logs]
+    Q -- No --> S
+
+    S --> T{Does an issue require\nadministrative review?}
+    T -- No --> U[Record Review Action\nin Audit Log\n&#40;if applicable&#41;]
+    U --> Z2([End])
+
+    T -- Yes --> V[Evaluate Issue]
+    V --> W{Is break-glass\naccess justified?}
+
+    W -- No --> X[Deny Break-Glass Access]
+    X --> Y[Record Denial\nin Audit Log]
+    Y --> Z3([End])
+
+    W -- Yes --> BG1[Grant Break-Glass Access]
+    BG1 --> BG2[Set Reason, Duration,\nRead-Only Status,\nGranted Time, Expiry Time,\nand Revocation Status]
+    BG2 --> BG3[System Records Admin Action\nin Audit Log]
+    BG3 --> BG4{Has break-glass access\nexpired or been revoked?}
+
+    BG4 -- Yes --> BG5[Revoke or Mark\nSession Expired]
+    BG5 --> BG6[Update Audit Log]
+    BG6 --> Z4([End])
+
+    BG4 -- No --> BG7[Maintain Access\nUntil Expiry Only]
+    BG7 --> Z5([End])
+
+    style A fill:#ffffff,stroke:#333,stroke-width:2px
+    style Z1 fill:#ffffff,stroke:#333,stroke-width:2px
+    style Z2 fill:#ffffff,stroke:#333,stroke-width:2px
+    style Z3 fill:#ffffff,stroke:#333,stroke-width:2px
+    style Z4 fill:#ffffff,stroke:#333,stroke-width:2px
+    style Z5 fill:#ffffff,stroke:#333,stroke-width:2px
+    style D fill:#dce8f5,stroke:#336699
+    style F fill:#dce8f5,stroke:#336699
+    style K fill:#dce8f5,stroke:#336699
+    style N fill:#dce8f5,stroke:#336699
+    style Q fill:#dce8f5,stroke:#336699
+    style T fill:#dce8f5,stroke:#336699
+    style W fill:#dce8f5,stroke:#336699
+    style BG4 fill:#dce8f5,stroke:#336699

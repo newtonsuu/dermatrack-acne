@@ -1,0 +1,66 @@
+@startuml patient_usecase
+' DermaTrack — Patient use cases (only what exists in code:
+' screens/{camera,scan_session,dashboard,calendar,gallery,profile,
+' notification_*,privacy_data,help_support,chat,patient_history})
+left to right direction
+skinparam actorStyle awesome
+actor "Patient" as P
+
+rectangle "Patient capabilities" {
+  usecase "Register / Log in / Reset password" as A1
+  usecase "Capture quick full-face scan" as A2
+  usecase "Run per-region scan session\n(forehead, cheeks, chin, nose)" as A3
+  usecase "View severity result + guidance" as A4
+  usecase "View overall facial summary" as A5
+  usecase "View history / calendar / gallery" as A6
+  usecase "View severity trend chart" as A7
+  usecase "Add / edit scan note" as A8
+  usecase "Delete own scan" as A9
+  usecase "Fill / update clinical intake" as A10
+  usecase "Grant / revoke doctor consent" as A11
+  usecase "View doctor note / treatment plan" as A12
+  usecase "View prescriptions" as A13
+  usecase "Chat with dermatologist" as A14
+  usecase "Manage profile + avatar" as A15
+  usecase "Configure notifications" as A16
+  usecase "Configure scan reminder\n(daily / 2-day / weekly)" as A17
+  usecase "Notification Center" as A18
+  usecase "Export my records (JSON)" as A19
+  usecase "Request account deletion" as A20
+  usecase "View security activity" as A21
+  usecase "Help & support / disclaimer / terms" as A22
+  usecase "Change password / Sign out" as A23
+  usecase "Edit / unsend own message" as A24
+}
+
+P --> A1
+P --> A2
+P --> A3
+P --> A4
+P --> A5
+P --> A6
+P --> A7
+P --> A8
+P --> A9
+P --> A10
+P --> A11
+P --> A12
+P --> A13
+P --> A14
+P --> A15
+P --> A16
+P --> A17
+P --> A18
+P --> A19
+P --> A20
+P --> A21
+P --> A22
+P --> A23
+P --> A24
+
+A24 .> A14 : <<extend>>
+A2 .> A4 : <<include>>
+A3 .> A4 : <<include>>
+A3 .> A5 : <<include>>
+note bottom of A12 : Visible only after the patient\ngrants consent (A11)
+@enduml

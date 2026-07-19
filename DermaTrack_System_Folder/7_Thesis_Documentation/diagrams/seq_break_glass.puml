@@ -1,0 +1,34 @@
+@startuml seq_break_glass
+' DermaTrack — Admin break-glass emergency access (time-limited, read-only, logged)
+' From break_glass_screen -> admin_service -> break_glass_sessions + audit_log,
+' then read patient records gated by has_active_break_glass() RLS.
+autonumber
+actor Admin
+participant "BreakGlassScreen" as BG
+participant "AdminService" as AS
+database "break_glass_sessions" as BGT
+database "audit_log" as AUD
+database "scans /\npatient_histories" as DB
+
+Admin -> BG : select patient + reason + duration (15/30/60) + confirm
+BG -> AS : openBreakGlass(patient, reason, minutes)
+AS -> BGT : insert (admin_id, target_patient_id, reason,\nduration, expires_at = now()+minutes, read_only=true)
+note right of BGT : RLS: insert allowed only if is_admin()
+BGT --> AS : session
+AS -> AUD : insert action='break_glass_opened' (reason, target)
+AUD --> AS : ok  ' "super admin notified / reviewed" = audit record
+AS --> BG : session (countdown)
+
+BG -> AS : loadPatientScans(patientId)
+AS -> DB : select scans where user_id = patientId
+note right of DB : RLS: is_admin() AND has_active_break_glass(patientId)\n(read-only; expires automatically). Images NOT exposed.
+DB --> AS : scan metadata rows
+AS --> BG : read-only records
+
+alt admin revokes early
+  Admin -> BG : Revoke access
+  BG -> AS : revokeBreakGlass(session)
+  AS -> BGT : update revoked = true
+  AS -> AUD : insert action='break_glass_revoked'
+end
+@enduml
